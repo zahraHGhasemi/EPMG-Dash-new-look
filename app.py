@@ -90,7 +90,7 @@ app.layout = html.Div([
     ]),
     dbc.Row([
         dbc.Col(
-        [dbc.Button("Upload Scenario", id="open-upload-modal", n_clicks=0, style = {'margin': '10px'} )
+        [html.Button("Upload Scenario", id="open-upload-modal", n_clicks=0, style = {'margin': '10px'} )
         ], width=2),
     ]),
     
@@ -146,6 +146,9 @@ register_upload_callback(app)
 
 register_all_chart_callbacks(app)
 register_compare_chart_callbacks(app)
+import os
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 8050))
+    app.run(host="0.0.0.0", port=port, debug=True)
+    # app.run(debug=True)
 
