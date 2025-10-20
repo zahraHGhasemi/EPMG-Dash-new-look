@@ -1,0 +1,2 @@
+*.json filter=lfs diff=lfs merge=lfs -text
+data/all_data_melted.json filter=lfs diff=lfs merge=lfs -text
