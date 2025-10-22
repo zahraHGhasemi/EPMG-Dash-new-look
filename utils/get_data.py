@@ -13,36 +13,39 @@ category_dic = { 'Transport': 'TRA',
                 'System': 'SYS'
                 }
 def get_categories(df_1):
-    query = "SELECT DISTINCT cat FROM observations"
+    query = 'SELECT DISTINCT "cat" FROM observations'
     df = read_sql(query)
-    return df["cat"].tolist()
+    return df["cat"].dropna().tolist()
+
 
 def get_subcategories(category):
-    category_id = category_dic[category].lower()
+    category_id = category_dic.get(category, "").lower()
     query = """
-        SELECT DISTINCT tableTitle
+        SELECT DISTINCT "tableTitle"
         FROM observations
-        WHERE cat = :cat
+        WHERE "cat" = :cat
     """
     df = read_sql(query, params={"cat": category_id})
-    return df["tableTitle"].tolist()
+    return df["tableTitle"].dropna().tolist()
+
 def get_table_id(table_name, category):
-    category_id = category_dic[category].lower()
+    category_id = category_dic.get(category, "").lower()
     query = """
-        SELECT tableName
+        SELECT "tableName"
         FROM observations
-        WHERE tableTitle = :tableTitle AND cat = :cat
+        WHERE "tableTitle" = :tableTitle AND "cat" = :cat
         LIMIT 1
     """
     df = read_sql(query, params={"tableTitle": table_name, "cat": category_id})
     return df["tableName"].iloc[0] if not df.empty else None
 def get_filtered_df(table_id, scenario, year_range):
+    """Filter observations by tableName, Scenario, and Year range."""
     query = """
         SELECT *
         FROM observations
-        WHERE tableName = :tableName
-          AND Scenario = :scenario
-          AND Year BETWEEN :year_start AND :year_end
+        WHERE "tableName" = :tableName
+          AND "Scenario" = :scenario
+          AND "Year" BETWEEN :year_start AND :year_end
     """
     df = read_sql(query, params={
         "tableName": table_id,
@@ -51,6 +54,7 @@ def get_filtered_df(table_id, scenario, year_range):
         "year_end": year_range[1]
     })
     return df
+
 # def get_categories(df):
 #     return df['cat'].unique().tolist()
 
@@ -73,8 +77,8 @@ def get_filtered_df(table_id, scenario, year_range):
 #     return filtered_data
 def get_subcategory_name(subcategory):
     print(subcategory, 'subcategory input')
-    print(chartsTitle[subcategory], 'subcategory name')
     if subcategory in chartsTitle:
+        print(chartsTitle[subcategory], 'subcategory name')
         return chartsTitle[subcategory]
     else:
         return subcategory
