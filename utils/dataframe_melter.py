@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from utils.data_loader import load_and_concat_data
 import os
+from utils.database_utils import read_sql
 
 
 def add_title_column(df):
@@ -71,21 +72,38 @@ def update_data_melted(all_data_df):
     all_data_melted, scenarios = melt_dataframe(all_data_df)
     return all_data_melted, scenarios
 def get_data_melted(scenario=[], year_range=[]):
-    filtered_data = all_data_melted     
+    # filtered_data = all_data_melted     
+    # if scenario:
+    #     filtered_data = all_data_melted[all_data_melted['Scenario'] == scenario]
+    # if year_range:
+    #     filtered_data = filtered_data[
+    #         (filtered_data['Year'] >= year_range[0]) & (filtered_data['Year'] <= year_range[1])
+    #     ]
+    # if not scenario and not year_range:
+    #     filtered_data = all_data_melted
+    # return filtered_data 
+    query = 'SELECT * FROM observations WHERE 1=1'
+    params = {}
+
     if scenario:
-        filtered_data = all_data_melted[all_data_melted['Scenario'] == scenario]
+        query += ' AND "Scenario" = :scenario'
+        params['scenario'] = scenario
+
     if year_range:
-        filtered_data = filtered_data[
-            (filtered_data['Year'] >= year_range[0]) & (filtered_data['Year'] <= year_range[1])
-        ]
-    if not scenario and not year_range:
-        filtered_data = all_data_melted
-    return filtered_data 
+        query += ' AND "Year" BETWEEN :start_year AND :end_year'
+        params['start_year'] = year_range[0]
+        params['end_year'] = year_range[1]
+
+    df = read_sql(query, params=params)
+    return df
 
 def get_scenarios():
-    scenarios = sorted(all_data_melted['Scenario'].unique())
-    return scenarios
-
+    # scenarios = sorted(all_data_melted['Scenario'].unique())
+    # return scenarios
+    query = 'SELECT DISTINCT "Scenario" FROM observations ORDER BY "Scenario"'
+    df = read_sql(query)
+    return sorted(df["Scenario"].dropna().unique().tolist())
+   
 def save_data(df, file_path):
     try:
         df.to_csv(file_path, index=False)
@@ -111,16 +129,17 @@ def load_data(file_path):
         return pd.DataFrame()
     
 
-DATA_CSV_PATH = "data_new/all_data_melted.csv"
+# DATA_CSV_PATH = "data_new/all_data_melted.csv"
 
-if os.path.exists(DATA_CSV_PATH):
-    print("Loading prebuilt melted CSV...")
-    all_data_melted = pd.read_csv(DATA_CSV_PATH)
+# if os.path.exists(DATA_CSV_PATH):
+#     print("Loading prebuilt melted CSV...")
+#     all_data_melted = pd.read_csv(DATA_CSV_PATH)
 
-else:
-    print("Melted CSV not found. Reading all CSV files and building DataFrame...")
-    all_data_df = load_and_concat_data('data')    # Save for future runs
-    all_data_melted, scenarios = melt_dataframe(all_data_df)
-    save_data(all_data_melted, "data_new/all_data_melted.csv")
-   
+# else:
+#     print("Melted CSV not found. Reading all CSV files and building DataFrame...")
+#     all_data_df = load_and_concat_data('data')    # Save for future runs
+#     all_data_melted, scenarios = melt_dataframe(all_data_df)
+#     save_data(all_data_melted, "data_new/all_data_melted.csv")
+
+  
 scenarios = get_scenarios()
