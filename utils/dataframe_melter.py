@@ -92,14 +92,22 @@ def save_data(df, file_path):
         print(f"DataFrame saved to {file_path}")
     except Exception as e:
         print(f"Error saving DataFrame to {file_path}: {e}")
-
+from utils.database_utils import engine
 def load_data(file_path):
+    # try:
+    #     df = pd.read_csv(file_path)
+    #     print(f"DataFrame loaded from {file_path}")
+    #     return df
+    # except Exception as e:
+    #     print(f"Error loading {file_path}: {e}")
+    #     return pd.DataFrame()
     try:
-        df = pd.read_csv(file_path)
-        print(f"DataFrame loaded from {file_path}")
+        query = "SELECT * FROM observations"
+        df = pd.read_sql(query, engine)
+        print("DataFrame loaded from Postgres")
         return df
     except Exception as e:
-        print(f"Error loading {file_path}: {e}")
+        print(f"Error loading data from Postgres: {e}")
         return pd.DataFrame()
     
 
