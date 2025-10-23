@@ -33,58 +33,63 @@ def register_compare_chart_callbacks(app):
         df_combined = pd.concat([df, df_compare])
         if difference_option == 'no':
             df_combined = df_combined.sort_values(by="Year")
+            fig = plot_chart(df_combined, chart_types, facet_col = 'source',category_orders={'source': ['scenario', 'scenario compare']})
 
-            if chart_types == 'line':
-                fig = px.line(
-                    df_combined,
-                    x='Year',
-                    y='Value',
-                    color='seriesTitle',  # separate lines by seriesName
-                    facet_col='source',  # group df1 and df2 side by side
-                    category_orders={'source': ['scenario', 'scenario compare']}  # different line styles for df1 and df2
-                )
-            elif chart_types == 'area':
-                fig = px.area(
-                    df_combined,
-                    x='Year',
-                    y='Value',
-                    color='seriesTitle',  # separate areas by seriesName
-                    facet_col='source',  # group df1 and df2 side by side
-                    category_orders={'source': ['scenario', 'scenario compare']}                )
-            else:  # Default to bar chart
-                fig = px.bar(
-                    df_combined,
-                    x='Year',
-                    y='Value',
-                    color='seriesTitle',  # stacked by seriesName
-                    barmode='stack',
-                    facet_col='source',  # group df1 and df2 side by side
-                    category_orders={'source': ['scenario', 'scenario compare']}
-                )
+            # if chart_types == 'line':
+            #     fig = px.line(
+            #         df_combined,
+            #         x='Year',
+            #         y='Value',
+            #         color='seriesTitle',  # separate lines by seriesName
+            #         facet_col='source',  # group df1 and df2 side by side
+            #         category_orders={'source': ['scenario', 'scenario compare']}  # different line styles for df1 and df2
+            #     )
+            # elif chart_types == 'area':
+            #     fig = px.area(
+            #         df_combined,
+            #         x='Year',
+            #         y='Value',
+            #         color='seriesTitle',  # separate areas by seriesName
+            #         facet_col='source',  # group df1 and df2 side by side
+            #         category_orders={'source': ['scenario', 'scenario compare']}                )
+            # else:  # Default to bar chart
+            #     fig = px.bar(
+            #         df_combined,
+            #         x='Year',
+            #         y='Value',
+            #         color='seriesTitle',  # stacked by seriesName
+            #         barmode='stack',
+            #         facet_col='source',  # group df1 and df2 side by side
+            #         category_orders={'source': ['scenario', 'scenario compare']}
+            #     )
         else:
-            df = df[['tableName','Year', 'seriesTitle', 'Value', 'source']]
-            df_compare = df_compare[['tableName', 'Year', 'seriesTitle', 'Value', 'source']]
-            merge_cols = ['tableName', 'Year', 'seriesTitle']
+            print(df.columns, 'firstfirst')
+            print(df_compare.columns, 'secondfirst')
+            df = df[['tableName','Year', 'seriesTitle', 'Value', 'source', 'tableTitle',  'label']]
+            df_compare = df_compare[['tableName', 'Year', 'seriesTitle', 'Value', 'source', 'tableTitle',  'label']]
+            print(df.columns, 'first')
+            print(df_compare.columns, 'second')
+            merge_cols = ['tableName', 'Year', 'seriesTitle', 'tableTitle',  'label']
             df_merged = pd.merge(df, df_compare, on=merge_cols, suffixes=('_df1','_df2'))
 
             df_merged = df_merged.sort_values(by="Year")
             df_merged['Difference'] = df_merged['Value_df1'] - df_merged['Value_df2']
-            
-            if chart_types == 'line':
-                fig = px.line(
-                    df_merged,
-                    x='Year',
-                    y='Difference',
-                    color='seriesTitle',  # separate lines by seriesName
-                )
-            elif chart_types == 'area':
-                fig = px.area(
-                    df_merged,
-                    x='Year',
-                    y='Difference',
-                    color='seriesTitle',  # separate areas by seriesName
-                )
-            else:  # Default to bar chart
+            print(df_merged.columns)
+            # if chart_types == 'line':
+            #     fig = px.line(
+            #         df_merged,
+            #         x='Year',
+            #         y='Difference',
+            #         color='seriesTitle',  # separate lines by seriesName
+            #     )
+            # elif chart_types == 'area':
+            #     fig = px.area(
+            #         df_merged,
+            #         x='Year',
+            #         y='Difference',
+            #         color='seriesTitle',  # separate areas by seriesName
+            #     )
+            if chart_types == 'bar':  # Default to bar chart
                 df_merged = df_merged.sort_values(by = "Difference")
                 pos_df = df_merged[df_merged['Difference'] >= 0]
                 neg_df = df_merged[df_merged['Difference'] < 0]
@@ -120,13 +125,16 @@ def register_compare_chart_callbacks(app):
                 # Update layout
                 fig.update_layout(
                     barmode='relative',  # positive up, negative down
-                    title='Diverging Stacked Bar Chart (Consistent Colors)',
+                    title='Stacked Bar Chart',
                     xaxis_title='Year',
                     yaxis_title='Difference',
                     template='plotly_white',
                     yaxis_zeroline=True
                 )
         # fig.update_layout(title="Grouped Stacked Bar Chart")
+            else:
+                fig = plot_chart(df_merged, chart_types, y_col='Difference')
+
         
         return fig
         

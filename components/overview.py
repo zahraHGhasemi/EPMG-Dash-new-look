@@ -32,17 +32,16 @@ overview_layout = dbc.Container([
     
     dbc.Row([
         dbc.Col([
-            html.H3("Description:", className="mb-4"),
+            html.H3("Description", className="mb-4"),
             html.P("This overview provides insights into the selected scenario's key metrics over the " \
             "specified year range. Users can select different scenarios, years, metrics, and chart types" \
             " to visualize the data effectively." ),
             html.Br(),
-            html.Br()            
         ], width=12),
           
     
         dbc.Col([
-                html.Label("Scenario:", className="control-label"),
+                html.Label("Scenario", className="control-label"),
                 get_scenario_dropdown()
                 # dcc.Dropdown(
                 #     id='scenario-dropdown',
@@ -53,7 +52,7 @@ overview_layout = dbc.Container([
                 # )
         ], width=4),
         dbc.Col([
-                html.Label("Start year:", className="control-label"),
+                html.Label("Start year", className="control-label"),
                 dcc.Dropdown(
                     id='start-year-dropdown',
                     options=[{'label': str(year), 'value': year} for year in range(2018, 2051)],
@@ -61,7 +60,7 @@ overview_layout = dbc.Container([
                 )
         ], width =1),
         dbc.Col([
-                html.Label("End year:", className="control-label"),
+                html.Label("End year", className="control-label"),
                 dcc.Dropdown(
                     id='end-year-dropdown',
                     options=[{'label': str(year), 'value': year} for year in range(2018, 2051)],
@@ -69,7 +68,7 @@ overview_layout = dbc.Container([
                 )
         ], width =1),
         dbc.Col([
-                html.Label("Metric:", className="control-label"),
+                html.Label("Metric", className="control-label"),
                 dcc.Dropdown(
                     id='metric-dropdown',
                     options=['FEC', 'Import', 'Renewable'],
@@ -77,7 +76,7 @@ overview_layout = dbc.Container([
                 ) 
         ], width=4),
         dbc.Col([
-                html.Label("Chart Type:", className="control-label"),
+                html.Label("Chart Type", className="control-label"),
                 dcc.Dropdown(
                     id='chart-type-overview-dropdown',
                     options= {'bar': 'Bar', 'pie': 'Pie'},

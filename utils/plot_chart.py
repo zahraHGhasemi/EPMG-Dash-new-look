@@ -1,44 +1,65 @@
 import plotly.express as px
 
-def plot_chart(all_data_melted_filtered, type = 'area'):
+def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = "Value", facet_col= None, category_orders = None, barmode = 'stack'):
     color_col = 'seriesTitle' if all_data_melted_filtered['seriesTitle'].notna().any() else 'seriesName'
-    table_title = all_data_melted_filtered['tableTitle'].unique()[0] 
-    title_col = table_title if  table_title != 'nan' else all_data_melted_filtered['tableName'].unique()[0]
+    if 'tableTitle' in all_data_melted_filtered.columns:
+        table_title = all_data_melted_filtered['tableTitle'].unique()[0] 
+        title_col = table_title if  table_title != 'nan' else all_data_melted_filtered['tableName'].unique()[0]
+    else:
+        title_col = "Selected Chart"
+
     all_data_melted_filtered = all_data_melted_filtered.sort_values(by="Year")
+
+    if facet_col is None and 'source' in all_data_melted_filtered.columns:
+        facet_col = 'source'
+    if category_orders is None and facet_col:
+        category_orders = {facet_col: sorted(all_data_melted_filtered[facet_col].unique())}
 
     if type == 'bar':
         fig = px.bar(
             all_data_melted_filtered,
-            x='Year',
-            y='Value', # Changed y to 'Value'
+            x=x_col,
+            y=y_col, # Changed y to 'Value'
             color=color_col, #'seriesTitle', # Changed color to 'seriesName',
             title  = title_col, #all_data_melted_filtered['tableTitle'].unique()[0]
-            color_discrete_sequence=px.colors.qualitative.Light24
+            color_discrete_sequence=px.colors.qualitative.Light24,
+            facet_col = facet_col,
+            category_orders=category_orders
+
         )
-        fig.update_layout(xaxis_title='Year', yaxis_title= all_data_melted_filtered['label'].unique()[0] if not all_data_melted_filtered.empty else 'Value') # Updated yaxis_title
+        fig.update_layout(xaxis_title= x_col, yaxis_title= all_data_melted_filtered['label'].unique()[0] if not all_data_melted_filtered.empty else 'Value',
+                          legend = dict(title_text='')) # Updated yaxis_title
         return fig
     elif type == 'line':
         fig = px.line(
             all_data_melted_filtered,
-            x='Year',
-            y='Value', # Changed y to 'Value'
+            x=x_col,
+            y=y_col, # Changed y to 'Value'
             color=color_col, #'seriesTitle', # Changed color to 'seriesName',
             title  = title_col, #tiall_data_melted_filtered['tableTitle'].unique()[0]
-            color_discrete_sequence=px.colors.qualitative.Light24
+            color_discrete_sequence=px.colors.qualitative.Light24,
+            facet_col = facet_col,
+            category_orders=category_orders
         )
-        fig.update_layout(xaxis_title='Year', yaxis_title= all_data_melted_filtered['label'].unique()[0] if not all_data_melted_filtered.empty else 'Value') # Updated yaxis_title
+        fig.update_layout(xaxis_title= x_col, yaxis_title= all_data_melted_filtered['label'].unique()[0] if not all_data_melted_filtered.empty else 'Value',
+                          legend = dict(title_text='')) # Updated yaxis_title
         return fig
     elif type == 'area':
         fig = px.area(
             all_data_melted_filtered,
-            x='Year',
-            y='Value', # Changed y to 'Value'
+            x= x_col,
+            y=y_col, # Changed y to 'Value'
             color=color_col, #'seriesTitle', # Changed color to 'seriesName',
             title  = title_col, #tiall_data_melted_filtered['tableTitle'].unique()[0]
-            color_discrete_sequence=px.colors.qualitative.Light24
+            color_discrete_sequence=px.colors.qualitative.Light24,
+            facet_col = facet_col,
+            category_orders=category_orders
         )
-        fig.update_layout(xaxis_title='Year', yaxis_title= all_data_melted_filtered['label'].unique()[0] if not all_data_melted_filtered.empty else 'Value') # Updated yaxis_title
+        fig.update_layout(xaxis_title= x_col, yaxis_title= all_data_melted_filtered['label'].unique()[0] if not all_data_melted_filtered.empty else 'Value', 
+                          legend = dict(title_text='')) # Updated yaxis_title
         return fig
+    
+
 def plot_pie_chart(df, year, title):
     fig = px.pie(df, values='Value', names='seriesTitle', title=f'{title} {year}', hole=0.3)
 
@@ -96,8 +117,19 @@ def plot_two_pie_charts_px(df1, year1, df2, year2, title):
 
     # Add traces from px.pie to the combined figure
     for trace in pie1.data:
+        # trace.textinfo = 'percent'
+        trace.textposition='inside'
+        trace.textinfo='percent+label'
+        # trace.texttemplate = '%{percent:.1f}%'
+        # trace.hovertemplate = '%{label}: %{value} (%{percent:.1f}%)'
         fig.add_trace(trace, 1, 1)
+
     for trace in pie2.data:
+        # trace.textinfo = 'percent'
+        trace.textposition='inside'
+        trace.textinfo='percent+label'
+        # trace.texttemplate = '%{:.1f}%'
+        # trace.hovertemplate = '%{label}: %{value} (%{percent:.1f}%)'
         fig.add_trace(trace, 1, 2)
 
     # Add center annotations for totals
@@ -111,12 +143,22 @@ def plot_two_pie_charts_px(df1, year1, df2, year2, title):
     fig.add_annotation(text=f"{total2} {unit2}", x=0.80, y=0.5,
                        font=dict(size=14, color='black'), showarrow=False)
 
-    # Update layout for shared legend
+    # Update layout for title and legend
     fig.update_layout(
-        title_text=title,
-        legend_title_text='Series',
-        legend=dict(orientation='h', y=-0.1),
-        showlegend=True
+        title=dict(
+            text=title,
+            x=0.5,
+            xanchor='center',
+            yanchor='top',
+            font=dict(size=18)
+        ),
+        legend=dict(
+            orientation='h',
+            x=0.5,
+            xanchor='center',
+            y=-0.1,
+            yanchor='top'
+        )
     )
 
     return fig
@@ -146,15 +188,33 @@ def plot_two_bar_charts_px(df1, year1, df2, year2, title):
     )
 
     # Update bar and layout settings
-    fig.update_traces(texttemplate='%{text:.2s}', textposition='outside')
-    
+      
+    fig.update_traces(
+        texttemplate='%{text:.2s}',
+        textposition='inside',      # place numbers inside each segment
+        insidetextanchor='start',   # align text to the start (left) of the segment
+        width=2
+    ) 
     fig.update_layout(
-        barmode="stack",  # stack the series for each year
+        barmode="stack",
         xaxis_title="Year",
         yaxis_title=combined_df['label'].unique()[0] if not combined_df.empty else 'Value',
-        legend=dict(orientation='h', y=-0.1),
-        legend_title_text="Series",
-        bargap=0.3
+        bargap=0.5,  # spacing between bars, bigger = thinner
+        title=dict(
+            text=title,
+            x=0.5,
+            xanchor='center',
+            yanchor='top',
+            font=dict(size=18)
+        ),
+        legend=dict(
+            orientation='h',
+            x=0.5,
+            xanchor='center',
+            y=-0.2,
+            yanchor='top',
+            title_text=''
+        )
     )
 
     return fig
