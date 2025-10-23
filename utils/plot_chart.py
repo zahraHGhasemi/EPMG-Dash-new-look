@@ -3,7 +3,9 @@ import plotly.express as px
 def plot_chart(all_data_melted_filtered, type = 'area'):
     color_col = 'seriesTitle' if all_data_melted_filtered['seriesTitle'].notna().any() else 'seriesName'
     table_title = all_data_melted_filtered['tableTitle'].unique()[0] 
-    title_col = table_title if  table_title != 'nan' else all_data_melted_filtered['tableName'].unique()[0] 
+    title_col = table_title if  table_title != 'nan' else all_data_melted_filtered['tableName'].unique()[0]
+    all_data_melted_filtered = all_data_melted_filtered.sort_values(by="Year")
+
     if type == 'bar':
         fig = px.bar(
             all_data_melted_filtered,

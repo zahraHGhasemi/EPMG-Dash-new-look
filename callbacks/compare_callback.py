@@ -32,6 +32,8 @@ def register_compare_chart_callbacks(app):
         # Combine dataframes
         df_combined = pd.concat([df, df_compare])
         if difference_option == 'no':
+            df_combined = df_combined.sort_values(by="Year")
+
             if chart_types == 'line':
                 fig = px.line(
                     df_combined,
@@ -65,7 +67,9 @@ def register_compare_chart_callbacks(app):
             merge_cols = ['tableName', 'Year', 'seriesTitle']
             df_merged = pd.merge(df, df_compare, on=merge_cols, suffixes=('_df1','_df2'))
 
+            df_merged = df_merged.sort_values(by="Year")
             df_merged['Difference'] = df_merged['Value_df1'] - df_merged['Value_df2']
+            
             if chart_types == 'line':
                 fig = px.line(
                     df_merged,
@@ -81,15 +85,47 @@ def register_compare_chart_callbacks(app):
                     color='seriesTitle',  # separate areas by seriesName
                 )
             else:  # Default to bar chart
+                df_merged = df_merged.sort_values(by = "Difference")
+                pos_df = df_merged[df_merged['Difference'] >= 0]
+                neg_df = df_merged[df_merged['Difference'] < 0]
+                unique_series = df_merged['seriesTitle'].unique()
+                palette = px.colors.qualitative.Light24
+                color_map = {s: palette[i % len(palette)] for i, s in enumerate(unique_series)}
+
+                # --- Positive figure ---
                 fig = px.bar(
-                    df_merged,
+                    pos_df,
                     x='Year',
                     y='Difference',
-                    color='seriesTitle',  # stacked by seriesName
-                    barmode='stack',
-                    
-                )   
+                    color='seriesTitle',
+                    color_discrete_map=color_map
+                )
 
+                # --- Negative figure ---
+                fig_neg = px.bar(
+                    neg_df,
+                    x='Year',
+                    y='Difference',
+                    color='seriesTitle',
+                    color_discrete_map=color_map
+                )
+
+                # Merge both sets of traces
+                existing_legends = set(trace.name for trace in fig.data)
+                for trace in fig_neg.data:
+                    if trace.name in existing_legends:
+                        trace.showlegend = False  # hide duplicates in legend
+                    fig.add_trace(trace)
+
+                # Update layout
+                fig.update_layout(
+                    barmode='relative',  # positive up, negative down
+                    title='Diverging Stacked Bar Chart (Consistent Colors)',
+                    xaxis_title='Year',
+                    yaxis_title='Difference',
+                    template='plotly_white',
+                    yaxis_zeroline=True
+                )
         # fig.update_layout(title="Grouped Stacked Bar Chart")
         
         return fig
