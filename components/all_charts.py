@@ -9,7 +9,7 @@ def options_layout():
     return dbc.Container([
     dbc.Row([
             dbc.Col([
-                html.Label("Year Range:"),
+                html.Label("Year Range"),
                 dcc.RangeSlider(
                     id='year-slider',
                     min= 2018, #all_data_melted['Year'].min(),
@@ -22,7 +22,7 @@ def options_layout():
         ]),
         dbc.Row([
             dbc.Col([
-                html.Label("Scenario:"),
+                html.Label("Scenario"),
                 dcc.Dropdown(
                     id='scenario-chart-dropdown',
                     options= [{'label': s, 'value': s} for s in scenarios],
@@ -30,7 +30,7 @@ def options_layout():
                 )
             ], width=3),
             dbc.Col([
-                html.Label("Chart Types:"),
+                html.Label("Chart Types"),
                 dcc.Dropdown(
                     id='chart-type-dropdown',
                     options= {'bar': 'Bar', 'line': 'Line', 'area': 'Area'},
@@ -38,7 +38,7 @@ def options_layout():
                 )
             ], width=3),
             dbc.Col([
-                html.Label("Sector:"),
+                html.Label("Sector"),
                 dcc.Dropdown(
                     id='category-dropdown',
                     options= ['System', 'Supply', 'Power', 'Transport', 'Residential', 'Services',
@@ -47,7 +47,7 @@ def options_layout():
                 )
             ], width=3),
             dbc.Col([
-                html.Label('Subsector:'),
+                html.Label('Subsector'),
                 dcc.Dropdown(
                     id='subcategory-dropdown',
                     options=[],  # To be populated based on category selection
@@ -124,7 +124,12 @@ def all_charts_layout():
             
             dbc.Row([
                 dbc.Col(
-                    dcc.Graph(id='selected-graph', style={'height': '600px'}),
+                    dbc.Spinner(
+                        dcc.Graph(id='selected-graph', style={'height': '600px'}),
+                        color="primary",      # spinner color
+                        size="lg",            # spinner size
+                        type="border"         # or "grow"
+                    ),
                     width=12
                 )
             ])

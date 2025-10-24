@@ -12,7 +12,7 @@ def compare_charts_layout():
     base.children.append(
         dbc.Row([
             dbc.Col([
-                html.Label("Compare Scenario:", className="control-label"),
+                html.Label("Compare Scenario", className="control-label"),
                 dcc.Dropdown(
                     id='compare-scenario-dropdown',
                     options=[{'label': s, 'value': s} for s in scenarios],
@@ -20,7 +20,7 @@ def compare_charts_layout():
                 ),
                 ], width=6),
             dbc.Col([
-                html.Label("Show difference:", className="control-label"),
+                html.Label("Show difference", className="control-label"),
                 dbc.RadioItems(
                     id='difference-radio',
                     options=[
@@ -37,9 +37,19 @@ def compare_charts_layout():
         dbc.Row([
             dbc.Col(
             [
-                dcc.Graph(id='compare-chart',
-                          style={'height': '600px'},
-                        config={'responsive': True})
+                dbc.Spinner(
+                    dcc.Graph(
+                        id='compare-chart',
+                        style={'height': '600px'},
+                        config={'responsive': True}
+                    ),
+                    color="primary",      # spinner color
+                    size="lg",            # spinner size
+                    type="border"         # or "grow"
+                )
+                # dcc.Graph(id='compare-chart',
+                #           style={'height': '600px'},
+                #         config={'responsive': True})
             ])
         ])
     )

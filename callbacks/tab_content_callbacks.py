@@ -18,7 +18,8 @@ from components.overview import overview_layout
 # from callbacks.search_callback import register_search_callbacks
 from components.all_charts import all_charts_layout
 from components.compare import compare_charts_layout
-from utils.dataframe_melter import get_data_melted
+# from utils.dataframe_melter import get_data_melted
+from components.about import about_layout
 def register_tab_content_callbacks(app):
     @app.callback(
         Output('tab-content', 'children'),
@@ -57,3 +58,5 @@ def register_tab_content_callbacks(app):
             return all_charts_layout()
         elif tab == 'compare-scenarios':
             return compare_charts_layout()
+        elif tab == 'about':
+            return about_layout()

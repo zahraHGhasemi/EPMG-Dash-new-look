@@ -88,9 +88,16 @@ overview_layout = dbc.Container([
     dbc.Row([
         dbc.Col(
         [
-            dcc.Graph(id='overview-chart',
-                      style={'height': '500px'},
-                    config={'responsive': True})
+            dbc.Spinner(
+                dcc.Graph(id='overview-chart',
+                    style={'height': '500px'},
+                    config={'responsive': True}
+                ),
+                color="primary",      # spinner color
+                size="lg",            # spinner size
+                type="border"         # or "grow"
+            )
+            
             
         ],
             md=12,  # full width on medium+ screens

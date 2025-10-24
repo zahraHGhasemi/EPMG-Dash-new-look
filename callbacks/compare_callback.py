@@ -63,18 +63,15 @@ def register_compare_chart_callbacks(app):
             #         category_orders={'source': ['scenario', 'scenario compare']}
             #     )
         else:
-            print(df.columns, 'firstfirst')
-            print(df_compare.columns, 'secondfirst')
+            
             df = df[['tableName','Year', 'seriesTitle', 'Value', 'source', 'tableTitle',  'label']]
             df_compare = df_compare[['tableName', 'Year', 'seriesTitle', 'Value', 'source', 'tableTitle',  'label']]
-            print(df.columns, 'first')
-            print(df_compare.columns, 'second')
+           
             merge_cols = ['tableName', 'Year', 'seriesTitle', 'tableTitle',  'label']
             df_merged = pd.merge(df, df_compare, on=merge_cols, suffixes=('_df1','_df2'))
 
             df_merged = df_merged.sort_values(by="Year")
             df_merged['Difference'] = df_merged['Value_df1'] - df_merged['Value_df2']
-            print(df_merged.columns)
             # if chart_types == 'line':
             #     fig = px.line(
             #         df_merged,
@@ -129,8 +126,10 @@ def register_compare_chart_callbacks(app):
                     xaxis_title='Year',
                     yaxis_title='Difference',
                     template='plotly_white',
-                    yaxis_zeroline=True
+                    yaxis_zeroline=True,
+                    legend = dict(title_text='')
                 )
+                
         # fig.update_layout(title="Grouped Stacked Bar Chart")
             else:
                 fig = plot_chart(df_merged, chart_types, y_col='Difference')

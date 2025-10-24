@@ -36,7 +36,7 @@ app.layout = html.Div([
             }
         ),
         html.H1(
-            "Energy Policy Modeling Group Dashboard",
+            "Energy Policy & Modeling Group Dashboard",
             style={
                 "margin": "0",
                 "font-size": "36px"
@@ -52,41 +52,42 @@ app.layout = html.Div([
     
     dbc.Row([       
         dbc.Col([
-            dcc.Tabs(id ='tabs', value = 'overview', children =[
+            dcc.Tabs(id ='tabs', value = 'about', children =[
+                dcc.Tab(label = 'About', value = 'about'),
                 dcc.Tab(label='Overview', value='overview'),
                 dcc.Tab(label='Chart Detail', value='all-charts'),
                 dcc.Tab(label='Compare Scenarios', value='compare-scenarios'),
             ]),
     html.Div(id='tab-content', children='Loading...'),
         ], width=12)
-    ]),
-    dbc.Row([
-        dbc.Col(
-        [html.Button("Upload Scenario", id="open-upload-modal", n_clicks=0, style = {'margin': '10px'} )
-        ], width=2),
-    ]),
+    ])
+    # dbc.Row([
+    #     dbc.Col(
+    #     [html.Button("Upload Scenario", id="open-upload-modal", n_clicks=0, style = {'margin': '10px'} )
+    #     ], width=2),
+    # ]),
     
-    html.Div(
-        id="upload-modal",
-        style={"display": "none", "position": "fixed", "top": "20%", "left": "35%", "width": "30%",
-                "background": "white", "border": "1px solid #ccc", "padding": "20px", "zIndex": 1000},
-        children=[
-            html.H4("Upload Scenario"),
-            dcc.Input(id="username", placeholder="Username", type="text", style={"width": "100%"}),
-            dcc.Input(id="password", placeholder="Password", type="password", style={"width": "100%", "marginTop": "10px"}),
-            html.Button("Login", id="login-btn", n_clicks=0, style={"marginTop": "10px"}),
-            html.Button("Close", id="close-upload-modal", n_clicks=0, style={"marginLeft": "10px"}),
-            html.Div(id="login-status", style={"marginTop": "10px"}),
-            dcc.Upload(
-                id="upload-data",
-                children=html.Div(["Drag and Drop or ", html.A("Select Files")]),
-                style={"width": "100%", "height": "60px", "lineHeight": "60px",
-                       "borderWidth": "1px", "borderStyle": "dashed", "borderRadius": "5px",
-                       "textAlign": "center", "marginTop": "10px"},
-                multiple=False
-            )
-        ]
-    )
+    # html.Div(
+    #     id="upload-modal",
+    #     style={"display": "none", "position": "fixed", "top": "20%", "left": "35%", "width": "30%",
+    #             "background": "white", "border": "1px solid #ccc", "padding": "20px", "zIndex": 1000},
+    #     children=[
+    #         html.H4("Upload Scenario"),
+    #         dcc.Input(id="username", placeholder="Username", type="text", style={"width": "100%"}),
+    #         dcc.Input(id="password", placeholder="Password", type="password", style={"width": "100%", "marginTop": "10px"}),
+    #         html.Button("Login", id="login-btn", n_clicks=0, style={"marginTop": "10px"}),
+    #         html.Button("Close", id="close-upload-modal", n_clicks=0, style={"marginLeft": "10px"}),
+    #         html.Div(id="login-status", style={"marginTop": "10px"}),
+    #         dcc.Upload(
+    #             id="upload-data",
+    #             children=html.Div(["Drag and Drop or ", html.A("Select Files")]),
+    #             style={"width": "100%", "height": "60px", "lineHeight": "60px",
+    #                    "borderWidth": "1px", "borderStyle": "dashed", "borderRadius": "5px",
+    #                    "textAlign": "center", "marginTop": "10px"},
+    #             multiple=False
+    #         )
+    #     ]
+    # )
 ])
 
 register_tab_content_callbacks(app)
