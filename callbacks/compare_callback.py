@@ -3,9 +3,15 @@ from dash import Input, Output, State, ctx, no_update
 from utils.get_data import get_categories, get_subcategories, get_table_id, get_subcategory_name
 from utils.get_data import get_filtered_df
 from utils.plot_chart import plot_chart
+from utils.unit_handler import unit_detect
 import pandas as pd
 import numpy as np
 import plotly.express as px
+
+
+acceptable_units = ["PJ", "kt","GW"]
+options_list = ['K', 'M', 'G', 'T', 'P'] 
+
 def register_compare_chart_callbacks(app):
     
     @app.callback(
@@ -16,16 +22,21 @@ def register_compare_chart_callbacks(app):
         Input('year-slider', 'value'),
         Input('chart-type-dropdown', 'value'),
         Input('compare-scenario-dropdown', 'value'),
-        Input('difference-radio', 'value')
-        # Input('generate_btn', 'n_clicks'),
-        # prevent_initial_call=True  
+        Input('difference-radio', 'value'),
+        Input('unit-dropdown', "value")
 
     )
-    def update_graph(table_name,category, scenario, year_range, chart_types, compare_scenario, difference_option):
+    def update_graph(table_name,category, scenario, year_range, chart_types, compare_scenario, difference_option, unit):
         table_id = get_table_id(table_name,category)
         df = get_filtered_df(table_id, scenario, year_range)
+        
+
         df_compare = get_filtered_df(table_id, compare_scenario, year_range)
 
+        if unit in options_list:
+            label = df['label'].iloc[0]
+            df = unit_detect(label, unit, df)
+            df_compare = unit_detect(label, unit, df_compare)
         df['source'] = 'scenario'
         df_compare['source'] = 'scenario compare'
 
@@ -35,33 +46,6 @@ def register_compare_chart_callbacks(app):
             df_combined = df_combined.sort_values(by="Year")
             fig = plot_chart(df_combined, chart_types, facet_col = 'source',category_orders={'source': ['scenario', 'scenario compare']})
 
-            # if chart_types == 'line':
-            #     fig = px.line(
-            #         df_combined,
-            #         x='Year',
-            #         y='Value',
-            #         color='seriesTitle',  # separate lines by seriesName
-            #         facet_col='source',  # group df1 and df2 side by side
-            #         category_orders={'source': ['scenario', 'scenario compare']}  # different line styles for df1 and df2
-            #     )
-            # elif chart_types == 'area':
-            #     fig = px.area(
-            #         df_combined,
-            #         x='Year',
-            #         y='Value',
-            #         color='seriesTitle',  # separate areas by seriesName
-            #         facet_col='source',  # group df1 and df2 side by side
-            #         category_orders={'source': ['scenario', 'scenario compare']}                )
-            # else:  # Default to bar chart
-            #     fig = px.bar(
-            #         df_combined,
-            #         x='Year',
-            #         y='Value',
-            #         color='seriesTitle',  # stacked by seriesName
-            #         barmode='stack',
-            #         facet_col='source',  # group df1 and df2 side by side
-            #         category_orders={'source': ['scenario', 'scenario compare']}
-            #     )
         else:
             
             df = df[['tableName','Year', 'seriesTitle', 'Value', 'source', 'tableTitle',  'label']]
@@ -72,20 +56,7 @@ def register_compare_chart_callbacks(app):
 
             df_merged = df_merged.sort_values(by="Year")
             df_merged['Difference'] = df_merged['Value_df1'] - df_merged['Value_df2']
-            # if chart_types == 'line':
-            #     fig = px.line(
-            #         df_merged,
-            #         x='Year',
-            #         y='Difference',
-            #         color='seriesTitle',  # separate lines by seriesName
-            #     )
-            # elif chart_types == 'area':
-            #     fig = px.area(
-            #         df_merged,
-            #         x='Year',
-            #         y='Difference',
-            #         color='seriesTitle',  # separate areas by seriesName
-            #     )
+            
             if chart_types == 'bar':  # Default to bar chart
                 df_merged = df_merged.sort_values(by = "Difference")
                 pos_df = df_merged[df_merged['Difference'] >= 0]

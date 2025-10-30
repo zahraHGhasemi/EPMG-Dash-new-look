@@ -19,19 +19,15 @@ def process_new_scenario(data_folder, new_file_path):
     Returns:
         tuple: (updated_all_data_melted, updated_scenarios)
     """
-    # 1️⃣ Ensure the file is saved in the data folder
     filename = os.path.basename(new_file_path)
     target_path = os.path.join(data_folder, filename)
     if new_file_path != target_path:
         os.replace(new_file_path, target_path)  # move uploaded file into the main folder
     
-    # 2️⃣ Reload all CSV files (including the new one)
     all_data_df = load_and_concat_data(data_folder)
     
-    # 3️⃣ Melt and process all data using your existing function
     all_data_melted, scenarios = update_data_melted(all_data_df)
     
-    # 4️⃣ Optionally save the melted data to a file
     all_data_melted.to_csv(os.path.join(UPLOAD_NEW_FILE, "all_data_melted.csv"), index=False)
     
     print(f"✅ Added and processed new scenario: {filename}")
@@ -40,7 +36,6 @@ def process_new_scenario(data_folder, new_file_path):
     return all_data_melted, scenarios
 
 
-# Simple credentials (for demo)
 
 
 def register_upload_callback(app):

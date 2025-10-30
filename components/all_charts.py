@@ -28,15 +28,8 @@ def options_layout():
                     options= [{'label': s, 'value': s} for s in scenarios],
                     value= scenarios[0] if len(scenarios) > 0 else None,
                 )
-            ], width=3),
-            dbc.Col([
-                html.Label("Chart Types"),
-                dcc.Dropdown(
-                    id='chart-type-dropdown',
-                    options= {'bar': 'Bar', 'line': 'Line', 'area': 'Area'},
-                    value= 'bar',
-                )
-            ], width=3),
+            ], width=4),
+            
             dbc.Col([
                 html.Label("Sector"),
                 dcc.Dropdown(
@@ -45,7 +38,7 @@ def options_layout():
                                 'Industry', 'Agriculture'],
                     value = 'System',
                 )
-            ], width=3),
+            ], width=4),
             dbc.Col([
                 html.Label('Subsector'),
                 dcc.Dropdown(
@@ -53,8 +46,26 @@ def options_layout():
                     options=[],  # To be populated based on category selection
                     value= None,  # Default value
                 )
-            ], width=3)
+            ], width=4)
 
+        ]),
+        dbc.Row([
+            dbc.Col([
+                html.Label("Chart Types"),
+                dcc.Dropdown(
+                    id='chart-type-dropdown',
+                    options= {'bar': 'Bar', 'line': 'Line', 'area': 'Area'},
+                    value= 'bar',
+                )
+            ], width=6),
+            dbc.Col([
+                html.Label("Unit"),
+                dcc.Dropdown(
+                    id = "unit-dropdown",
+                    options = [],
+                    value = None
+                )
+            ], width=6)
         ])
     ])
 def all_charts_layout():
