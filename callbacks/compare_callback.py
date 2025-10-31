@@ -3,14 +3,12 @@ from dash import Input, Output, State, ctx, no_update
 from utils.get_data import get_categories, get_subcategories, get_table_id, get_subcategory_name
 from utils.get_data import get_filtered_df
 from utils.plot_chart import plot_chart
-from utils.unit_handler import unit_detect
+from utils.unit_handler import unit_detect, dict_unit
 import pandas as pd
 import numpy as np
 import plotly.express as px
 
 
-acceptable_units = ["PJ", "kt","GW"]
-options_list = ['K', 'M', 'G', 'T', 'P'] 
 
 def register_compare_chart_callbacks(app):
     
@@ -33,10 +31,10 @@ def register_compare_chart_callbacks(app):
 
         df_compare = get_filtered_df(table_id, compare_scenario, year_range)
 
-        if unit in options_list:
-            label = df['label'].iloc[0]
-            df = unit_detect(label, unit, df)
-            df_compare = unit_detect(label, unit, df_compare)
+        if unit in dict_unit.keys():
+            df = unit_detect(unit, df)
+            df_compare = unit_detect(unit, df_compare)
+
         df['source'] = 'scenario'
         df_compare['source'] = 'scenario compare'
 

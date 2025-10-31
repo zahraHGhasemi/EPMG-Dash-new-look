@@ -2,12 +2,11 @@ from dash import Input, Output, State, ctx, no_update
 from utils.get_data import get_categories, get_subcategories, get_table_id, get_subcategory_name
 from utils.get_data import get_filtered_df
 from utils.plot_chart import plot_chart
-from utils.unit_handler import unit_detect
+from utils.unit_handler import unit_detect, dict_unit
 from dash import dcc
 
 
-acceptable_units = ["PJ", "kt","GW"]
-options_list = ['K', 'M', 'G', 'T', 'P'] 
+options_list = ['kt', 'PJ'] 
 
 def register_all_chart_callbacks(app):
     @app.callback(
@@ -18,12 +17,10 @@ def register_all_chart_callbacks(app):
     def update_subcategory_options(category):
         # Logic to get subcategories based on selected category
         subcategories = get_subcategories(category)
-        # print(subcategories, 'subcategory list')
         if category == 'System':
             value = 'Domestic CO2 Emissions by Sector'
         else:
             value = subcategories[0] if subcategories else None
-        # print(value, 'VALUE')
         return [{"label": sub, "value": sub} for sub in subcategories], value
     @app.callback(
         Output('unit-dropdown', 'options'),
@@ -39,17 +36,14 @@ def register_all_chart_callbacks(app):
         options =[]
         value = None
         label = df['label'].iloc[0]
-        print(label, "label")
-        if label in acceptable_units:
-            label_unit = label[1]
-            options = {option: option + label_unit  for option in options_list}
-            print(options)
-            value = label[0].upper()
-            print(value)
+        if label == "PJ":
+            options = ['PJ', 'TWh', 'ktoe']
+        elif label == "kt":
+            options =['kt', 'Mt']
         else:
             options = [label]
-            value = label
-        print(options, value, "option and value")
+
+        value = options[0]
         return options, value
     
     
@@ -68,11 +62,8 @@ def register_all_chart_callbacks(app):
         table_id = get_table_id(table_name,category)
         df = get_filtered_df(table_id, scenario, year_range)
 
-        if unit in options_list:
-            print("here to track")
-            label = df['label'].iloc[0]
-            df = unit_detect(label, unit, df)
-            print(df['label'].iloc[0], "here in unit")
+        if unit in dict_unit.keys():
+            df = unit_detect( unit, df)
         return plot_chart(df, chart_types)
     
     @app.callback(

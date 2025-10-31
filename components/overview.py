@@ -35,7 +35,7 @@ overview_layout = dbc.Container([
             html.H3("Description", className="mb-4"),
             html.P("This overview provides insights into the selected scenario's key metrics over the " \
             "specified year range. Users can select different scenarios, years, metrics, and chart types" \
-            " to visualize the data effectively." ),
+            " to visualise the data effectively." ),
             html.Br(),
         ], width=12),
           
