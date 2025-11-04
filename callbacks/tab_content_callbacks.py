@@ -18,6 +18,7 @@ from components.overview import overview_layout
 # from callbacks.search_callback import register_search_callbacks
 from components.all_charts import all_charts_layout
 from components.compare import compare_charts_layout
+from components.sankey import sankey_layout
 # from utils.dataframe_melter import get_data_melted
 from components.about import about_layout
 def register_tab_content_callbacks(app):
@@ -60,3 +61,5 @@ def register_tab_content_callbacks(app):
             return compare_charts_layout()
         elif tab == 'about':
             return about_layout()
+        elif tab == 'sankey':
+            return sankey_layout()

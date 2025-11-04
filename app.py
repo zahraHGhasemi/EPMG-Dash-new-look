@@ -15,7 +15,7 @@ from callbacks.upload_file_callback import register_upload_callback
 from utils.dataframe_melter import get_scenarios, get_data_melted
 from callbacks.all_chart_callback import register_all_chart_callbacks
 from callbacks.compare_callback import register_compare_chart_callbacks
-
+from callbacks.sankey_callback import register_sankey_callback
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP],
     suppress_callback_exceptions=True)
@@ -57,6 +57,7 @@ app.layout = html.Div([
                 dcc.Tab(label='Overview', value='overview'),
                 dcc.Tab(label='Chart Detail', value='all-charts'),
                 dcc.Tab(label='Compare Scenarios', value='compare-scenarios'),
+                dcc.Tab(label= "Sankey Diagram", value = 'sankey')
             ]),
     html.Div(id='tab-content', children='Loading...'),
         ], width=12)
@@ -97,6 +98,7 @@ register_upload_callback(app)
 
 register_all_chart_callbacks(app)
 register_compare_chart_callbacks(app)
+register_sankey_callback(app)
 import os
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8050))
