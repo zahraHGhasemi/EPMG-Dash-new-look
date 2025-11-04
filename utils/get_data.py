@@ -46,6 +46,7 @@ def get_filtered_df(table_id, scenario, year_range):
         WHERE "tableName" = :tableName
           AND "Scenario" = :scenario
           AND "Year" BETWEEN :year_start AND :year_end
+        ORDER BY "seriesName", "Year";
     """
     df = read_sql(query, params={
         "tableName": table_id,
@@ -54,6 +55,15 @@ def get_filtered_df(table_id, scenario, year_range):
         "year_end": year_range[1]
     })
     return df
+
+def get_subcategory_name(subcategory):
+    print(subcategory, 'subcategory input')
+    if subcategory in chartsTitle:
+        print(chartsTitle[subcategory], 'subcategory name')
+        return chartsTitle[subcategory]
+    else:
+        return subcategory
+
 
 # def get_categories(df):
 #     return df['cat'].unique().tolist()
@@ -75,10 +85,3 @@ def get_filtered_df(table_id, scenario, year_range):
 #                                     (all_data_melted['Year'] >= year_range[0])&
 #                                     (all_data_melted['Year'] <= year_range[1])]
 #     return filtered_data
-def get_subcategory_name(subcategory):
-    print(subcategory, 'subcategory input')
-    if subcategory in chartsTitle:
-        print(chartsTitle[subcategory], 'subcategory name')
-        return chartsTitle[subcategory]
-    else:
-        return subcategory
