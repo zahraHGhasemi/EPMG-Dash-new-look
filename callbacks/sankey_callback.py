@@ -11,17 +11,26 @@ import pandas as pd
 def register_sankey_callback(app):
     @app.callback(
         Output('sankey-diagram', 'figure'),
-        Input('year-sankey-input', 'value'),
+        Input('year-sankey-dropdown', 'value'),
         Input('scenario-sankey-dropdown', 'value')
     )
     def update_sankey(year, scenario):
-        df_FEC_Sector = get_filtered_df("SYS_FEC_Sector", scenario, [year,year])
-        df_FEC_Feul = get_filtered_df("SYS_FEC_Fuel", scenario, [year,year])
+        # df_SYS_TPED = get_filtered_df('SYS_TPED', scenario, [year, year])
+        # df_FEC_Sector = get_filtered_df("SYS_FEC_Sector", scenario, [year,year])
+        # df_renewable = get_filtered_df('PWR_Gen-ELCC', scenario, [year,year])
+        
+        # print(df_SYS_TPED['seriesTitle'].unique(), "df_SYS_TPED['seriesTitle'].unique()")
+        # print(df_FEC_Sector['seriesTitle'].unique(), "df_FEC_Sector['seriesTitle'].unique()")
+        # print(df_renewable['seriesTitle'].unique(), "df_renewable['seriesTitle'].unique()")
+
+        # df_filtered = df_SYS_TPED['seriesTitle']
+
         df_agr = get_filtered_df("AGR_FEC", scenario, [year,year])
         df_ind = get_filtered_df("IND_FEC", scenario, [year,year])
         df_srv = get_filtered_df("SRV_FEC", scenario, [year,year])
         df_rsd = get_filtered_df("RSD_FEC", scenario, [year,year])
         df_tra = get_filtered_df("TRA_FEC", scenario, [year,year])
+
         df_agr_filtered = df_agr[['seriesTitle', 'Value']].copy()
         df_agr_filtered['sector'] = 'Agriculture'
 

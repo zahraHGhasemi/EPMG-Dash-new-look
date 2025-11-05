@@ -55,8 +55,8 @@ app.layout = html.Div([
             dcc.Tabs(id ='tabs', value = 'about', children =[
                 dcc.Tab(label = 'About', value = 'about'),
                 dcc.Tab(label='Overview', value='overview'),
-                dcc.Tab(label='Chart Detail', value='all-charts'),
-                dcc.Tab(label='Compare Scenarios', value='compare-scenarios'),
+                # dcc.Tab(label='Chart Detail', value='all-charts'),
+                dcc.Tab(label='Charts', value='compare-scenarios'),
                 dcc.Tab(label= "Sankey Diagram", value = 'sankey')
             ]),
     html.Div(id='tab-content', children='Loading...'),

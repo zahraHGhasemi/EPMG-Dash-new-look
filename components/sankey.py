@@ -9,10 +9,9 @@ def sankey_layout ():
         dbc.Row([
             dbc.Col([
                 html.Label("Year"),
-                dbc.Input(
-                    id='year-sankey-input',
-                    min= 2018, #all_data_melted['Year'].min(),
-                    max= 2050, #all_data_melted['Year'].max()-1,
+                dcc.Dropdown(
+                    id='year-sankey-dropdown',
+                    options = [{'label': str(year), 'value': year} for year in range(2018, 2051)],
                     value=2024,
                 )
             ], width = 6),

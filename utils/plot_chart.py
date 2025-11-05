@@ -16,6 +16,7 @@ def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = 
         category_orders = {facet_col: sorted(all_data_melted_filtered[facet_col].unique())}
 
     if type == 'bar':
+        
         fig = px.bar(
             all_data_melted_filtered,
             x=x_col,
@@ -25,10 +26,12 @@ def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = 
             color_discrete_sequence=px.colors.qualitative.Light24,
             facet_col = facet_col,
             category_orders=category_orders
-
         )
         fig.update_layout(xaxis_title= x_col, yaxis_title= all_data_melted_filtered['label'].unique()[0] if not all_data_melted_filtered.empty else 'Value',
                           legend = dict(title_text='')) # Updated yaxis_title
+        
+
+
         return fig
     elif type == 'line':
         fig = px.line(

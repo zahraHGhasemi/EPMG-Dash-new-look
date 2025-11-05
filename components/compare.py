@@ -12,13 +12,25 @@ def compare_charts_layout():
     base.children.append(
         dbc.Row([
             dbc.Col([
+                html.Label("Compare Mode"),
+                dbc.RadioItems(
+                    id = 'compare-radio',
+                    options=[
+                        {'label': 'Yes', 'value': 1},
+                        {'label': 'No', 'value': 0},
+                    ],
+                    value=0,  # Default selection
+                    inline=True
+                )
+            ],width = 3),
+            dbc.Col([
                 html.Label("Compare Scenario", className="control-label"),
                 dcc.Dropdown(
                     id='compare-scenario-dropdown',
                     options=[{'label': s, 'value': s} for s in scenarios],
                     value=scenarios[1] if len(scenarios) > 1 else None,
                 ),
-                ], width=6),
+            ], width=6),
             dbc.Col([
                 html.Label("Show difference", className="control-label"),
                 dbc.RadioItems(
@@ -30,7 +42,7 @@ def compare_charts_layout():
                     value='no',  # Default selection
                     inline=True
                 ) 
-            ])
+            ],width = 3)
         ])
     )
     base.children.append(
