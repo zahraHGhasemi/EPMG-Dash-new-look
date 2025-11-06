@@ -14,13 +14,24 @@ def sankey_layout ():
                     options = [{'label': str(year), 'value': year} for year in range(2018, 2051)],
                     value=2024,
                 )
-            ], width = 6),
+            ], width = 2),
             dbc.Col([
                 html.Label("Scenario"),
                 dcc.Dropdown(
                     id='scenario-sankey-dropdown',
                     options= [{'label': s, 'value': s} for s in scenarios],
                     value= scenarios[0] if len(scenarios) > 0 else None,
+                )
+            ], width=4),
+            dbc.Col([
+                html.Label("Title"),
+                dcc.Dropdown(
+                    id="sankey_title_dropdown",
+                    options=[
+                        {'label': 'Final Energy to sectors', 'value': 0},
+                        {'label': 'Energy Flow', 'value': 1}
+                    ],
+                    value=1
                 )
             ], width=6)
         ]),
