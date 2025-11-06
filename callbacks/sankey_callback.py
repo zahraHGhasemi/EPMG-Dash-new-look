@@ -88,9 +88,10 @@ def prepare_sankey_data_SEAI(scenario, year):
 
     # Sum of rows where target == 'Primary Energy'
     sum_final = df_filtered.loc[df_filtered['seriesTitle'] == "Final Energy", 'Value'].sum()
+    sum_elex_export = df_filtered.loc[df_filtered['target'] == "Electricity", 'Value'].sum()
     print(sum_primary, sum_final)
     # Compute the difference
-    loss_value = sum_primary - sum_final 
+    loss_value = sum_primary - sum_final -sum_elex_export
     new_row = pd.DataFrame({
         'seriesTitle': ['Primary Energy', 'Primary Energy'],
         'Value': [loss_value, sum_final],
