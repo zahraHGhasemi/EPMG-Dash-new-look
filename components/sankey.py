@@ -8,13 +8,18 @@ def sankey_layout ():
     return dbc.Container([
         dbc.Row([
             dbc.Col([
-                html.Label("Year"),
-                dcc.Dropdown(
-                    id='year-sankey-dropdown',
-                    options = [{'label': str(year), 'value': year} for year in range(2018, 2051)],
-                    value=2024,
+                html.Label("Year Range"),
+                dcc.RangeSlider(
+                    id='year-sankey-slider',
+                    min= 2018, #all_data_melted['Year'].min(),
+                    max= 2050, #all_data_melted['Year'].max()-1,
+                    value=[2018, 2050],
+                    marks={str(year): str(year) for year in range( 2018,2050,5)}, #range(all_data_melted['Year'].min(), all_data_melted['Year'].max(), 1)},
+                    step=1
                 )
-            ], width = 2),
+            ])
+        ]),
+        dbc.Row([
             dbc.Col([
                 html.Label("Scenario"),
                 dcc.Dropdown(
@@ -22,7 +27,7 @@ def sankey_layout ():
                     options= [{'label': s, 'value': s} for s in scenarios],
                     value= scenarios[0] if len(scenarios) > 0 else None,
                 )
-            ], width=4),
+            ], width=6),
             dbc.Col([
                 html.Label("Title"),
                 dcc.Dropdown(
@@ -47,7 +52,20 @@ def sankey_layout ():
                     size="lg",            # spinner size
                     type="border"         # or "grow"
                 )
+            ]),
+            dbc.Col([
+                dbc.Spinner(
+                    dcc.Graph(
+                        id = "sankey-end-diagram",
+                        style={'height': '600px'},
+                        config={'responsive': True}
+                    ),
+                    color="primary",      # spinner color
+                    size="lg",            # spinner size
+                    type="border"         # or "grow"
+                )
             ])
-        ])
+        ]),
+
     ])
     

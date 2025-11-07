@@ -37,11 +37,10 @@ def handle_negative_elec(df_filtered):
     if not df_filtered[df_filtered['Value'] < 0].empty:
         neg_row = df_filtered[df_filtered['Value'] < 0].iloc[0]
         
-        seriesTitle = neg_row['seriesTitle']
+        seriesTitle = neg_row['seriesTitle' ]+ ' Export'
         target = neg_row['target']
         value = -neg_row['Value']  
         df_filtered.loc[len(df_filtered)] = [target, value, seriesTitle]
-        print(df_filtered,'here to test')
         df_filtered = df_filtered.drop(neg_row.name)
     
     return df_filtered
@@ -51,10 +50,6 @@ def prepare_sankey_data_SEAI(scenario, year):
     df_FEC_Sector = get_filtered_df("SYS_FEC_Sector", scenario, [year,year])
     df_renewable = get_filtered_df('PWR_Gen-ELCC', scenario, [year,year])
     
-    print(df_SYS_TPED['seriesTitle'].unique(), "df_SYS_TPED['seriesTitle'].unique()")
-    print(df_FEC_Sector['seriesTitle'].unique(), "df_FEC_Sector['seriesTitle'].unique()")
-    print(df_renewable['seriesTitle'].unique(), "df_renewable['seriesTitle'].unique()")
-
     df_filtered = df_SYS_TPED[['seriesTitle','Value']]
     df_filtered.loc[len(df_filtered)] = ["Wind offshore", 0]
     df_filtered.loc[len(df_filtered)] = ["Wind onshore", 0]
@@ -63,10 +58,7 @@ def prepare_sankey_data_SEAI(scenario, year):
     df_filtered['target'] = "Primary Energy"
     df_filtered = handle_negative_elec(df_filtered)
 
-    print(df_filtered['seriesTitle'].unique(), " df_filtered['seriesTitle'].unique()")
-    if "Other renewables" in df_filtered['seriesTitle'].unique():
-        print('if')
-       
+    if "Other renewables" in df_filtered['seriesTitle'].unique():       
         df_filtered.loc[df_filtered['seriesTitle']== "Wind offshore", 'Value'] = df_renewable[df_renewable['seriesTitle']== "Wind offshore"]['Value'].iloc[0]
        
         df_filtered.loc[df_filtered['seriesTitle']== "Wind onshore", 'Value'] = df_renewable[df_renewable['seriesTitle']== "Wind onshore"]['Value'].iloc[0]
@@ -74,9 +66,7 @@ def prepare_sankey_data_SEAI(scenario, year):
         sum_renewable = (df_renewable[df_renewable['seriesTitle']== "Wind offshore"]['Value'].iloc[0] + df_renewable[df_renewable['seriesTitle']== "Wind onshore"]['Value'].iloc[0] + 
                         df_renewable[df_renewable['seriesTitle']== "Solar"]['Value'].iloc[0])
         df_filtered.loc[df_filtered['seriesTitle']== "Other renewables", 'Value'] = df_filtered[df_filtered['seriesTitle']== "Other renewables"]['Value'].iloc[0] - sum_renewable
-    else: 
-        print(" not if")
-
+    
     new_rows = pd.DataFrame({
         'Value': df_FEC_Sector['Value'],             # Value from df_FEC_Sectore
         'seriesTitle': 'Final Energy',                # new column with constant value
@@ -86,11 +76,8 @@ def prepare_sankey_data_SEAI(scenario, year):
     df_filtered = pd.concat([df_filtered, new_rows], ignore_index=True)
     sum_primary = df_filtered.loc[df_filtered['target'] == "Primary Energy", 'Value'].sum()
 
-    # Sum of rows where target == 'Primary Energy'
     sum_final = df_filtered.loc[df_filtered['seriesTitle'] == "Final Energy", 'Value'].sum()
-    sum_elex_export = df_filtered.loc[df_filtered['target'] == "Electricity", 'Value'].sum()
-    print(sum_primary, sum_final)
-    # Compute the difference
+    sum_elex_export = df_filtered.loc[df_filtered['target'] == "Electricity Export", 'Value'].sum()
     loss_value = sum_primary - sum_final -sum_elex_export
     new_row = pd.DataFrame({
         'seriesTitle': ['Primary Energy', 'Primary Energy'],
@@ -100,55 +87,60 @@ def prepare_sankey_data_SEAI(scenario, year):
     df_filtered = pd.concat([df_filtered, new_row], ignore_index=True)
     sum_in = df_filtered.loc[df_filtered['seriesTitle'] == "Primary Energy", 'Value'].sum()
     sum_out = df_filtered.loc[df_filtered['target'] == "Primary Energy", 'Value'].sum()
-    print(sum_in, sum_out, "sum in and sum out")
-    print(df_filtered)
     return df_filtered
+def draw_sankey(df_all, year):
+    level1 = df_all['seriesTitle'].unique().tolist()  # energy sources
+    level2 = df_all['target'].unique().tolist()       # sectors
+    nodes = level1 + level2
+    node_indices = {name: i for i, name in enumerate(nodes)}
 
+    n = len(nodes)
+    node_colors = px.colors.sample_colorscale("hsv", [i / (n - 1) for i in range(n)])
+    source = df_all['seriesTitle'].map(node_indices)
+    target = df_all['target'].map(node_indices)
+    value  = df_all['Value']
+    link_colors = [node_colors[s] for s in source]
+
+    df_links = pd.DataFrame({
+        "source": df_all['seriesTitle'],
+        "target": df_all['target'],
+        "value": df_all['Value']
+    })
+
+    fig = go.Figure(go.Sankey(
+        node=dict(
+            label=nodes,
+            color = node_colors
+        ),
+        link=dict(
+            source=source,
+            target=target,
+            value=value,
+            color=link_colors
+        )
+    ))
+    fig.update_layout(
+        title = year
+    )
+    return fig
 def register_sankey_callback(app):
     @app.callback(
         Output('sankey-diagram', 'figure'),
-        Input('year-sankey-dropdown', 'value'),
+        Output('sankey-end-diagram', 'figure'),
+      
+        Input('year-sankey-slider', 'value'),
         Input('scenario-sankey-dropdown', 'value'),
         Input('sankey_title_dropdown', 'value')
     )
     def update_sankey(year, scenario, title):
         if title == 0:
-            df_all = prepare_sankey_data_energy_source_to_sector(scenario, year)
+            df_all = prepare_sankey_data_energy_source_to_sector(scenario, year[0])
+            df_all_end = prepare_sankey_data_energy_source_to_sector(scenario, year[1])
+
         elif title == 1:
-            df_all = prepare_sankey_data_SEAI(scenario, year)
+            df_all = prepare_sankey_data_SEAI(scenario, year[0])
+            df_all_end = prepare_sankey_data_SEAI(scenario, year[1])
                 # Nodes
-        level1 = df_all['seriesTitle'].unique().tolist()  # energy sources
-        level2 = df_all['target'].unique().tolist()       # sectors
-        nodes = level1 + level2
-        node_indices = {name: i for i, name in enumerate(nodes)}
 
-        # Links
-        n = len(nodes)
-        node_colors = px.colors.sample_colorscale("hsv", [i / (n - 1) for i in range(n)])
-        source = df_all['seriesTitle'].map(node_indices)
-        target = df_all['target'].map(node_indices)
-        value  = df_all['Value']
-        link_colors = [node_colors[s] for s in source]
-
-        df_links = pd.DataFrame({
-            "source": df_all['seriesTitle'],
-            "target": df_all['target'],
-            "value": df_all['Value']
-        })
-
-        fig = go.Figure(go.Sankey(
-            node=dict(
-                label=nodes,
-                color = node_colors
-            ),
-            link=dict(
-                source=source,
-                target=target,
-                value=value,
-                color=link_colors
-            )
-        ))
-
-        # fig.update_layout(title_text="Energy Sources → Sectors", font_size=12)
-        return fig
+        return draw_sankey(df_all, year[0]), draw_sankey(df_all_end, year[1])
     
