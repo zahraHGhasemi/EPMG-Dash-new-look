@@ -88,6 +88,8 @@ def prepare_sankey_data_SEAI(scenario, year):
     sum_in = df_filtered.loc[df_filtered['seriesTitle'] == "Primary Energy", 'Value'].sum()
     sum_out = df_filtered.loc[df_filtered['target'] == "Primary Energy", 'Value'].sum()
     return df_filtered
+
+
 def draw_sankey(df_all, year):
     level1 = df_all['seriesTitle'].unique().tolist()  # energy sources
     level2 = df_all['target'].unique().tolist()       # sectors
@@ -95,7 +97,9 @@ def draw_sankey(df_all, year):
     node_indices = {name: i for i, name in enumerate(nodes)}
 
     n = len(nodes)
-    node_colors = px.colors.sample_colorscale("hsv", [i / (n - 1) for i in range(n)])
+    palette = px.colors.qualitative.Pastel1
+    node_colors = (palette * ((n // len(palette)) + 1))[:n]
+
     source = df_all['seriesTitle'].map(node_indices)
     target = df_all['target'].map(node_indices)
     value  = df_all['Value']

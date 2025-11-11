@@ -13,8 +13,8 @@ def sankey_layout ():
                     id='year-sankey-slider',
                     min= 2018, #all_data_melted['Year'].min(),
                     max= 2050, #all_data_melted['Year'].max()-1,
-                    value=[2018, 2050],
-                    marks={str(year): str(year) for year in range( 2018,2050,5)}, #range(all_data_melted['Year'].min(), all_data_melted['Year'].max(), 1)},
+                    value=[2024, 2050],
+                    marks={str(year): str(year) for year in range( 2020,2050,5)}, #range(all_data_melted['Year'].min(), all_data_melted['Year'].max(), 1)},
                     step=1
                 )
             ])
