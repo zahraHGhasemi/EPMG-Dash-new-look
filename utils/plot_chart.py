@@ -1,6 +1,6 @@
 import plotly.express as px
 
-def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = "Value", facet_col= None, category_orders = None, barmode = 'stack'):
+def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = "Value", facet_col= None, category_orders = None, barmode = 'stack',color_map =[]):
     color_col = 'seriesTitle' if all_data_melted_filtered['seriesTitle'].notna().any() else 'seriesName'
     if 'tableTitle' in all_data_melted_filtered.columns:
         table_title = all_data_melted_filtered['tableTitle'].unique()[0] 
@@ -14,16 +14,18 @@ def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = 
         facet_col = 'source'
     if category_orders is None and facet_col:
         category_orders = {facet_col: sorted(all_data_melted_filtered[facet_col].unique())}
+    if color_map ==[]:
+        color_map= color_col
 
     if type == 'bar':
-        
         fig = px.bar(
             all_data_melted_filtered,
             x=x_col,
             y=y_col, # Changed y to 'Value'
             color=color_col, #'seriesTitle', # Changed color to 'seriesName',
             title  = title_col, #all_data_melted_filtered['tableTitle'].unique()[0]
-            color_discrete_sequence=px.colors.qualitative.Light24,
+            color_discrete_map= color_map,
+            # color_discrete_sequence=px.colors.qualitative.Light24,
             facet_col = facet_col,
             category_orders=category_orders
         )
@@ -40,7 +42,7 @@ def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = 
             y=y_col, # Changed y to 'Value'
             color=color_col, #'seriesTitle', # Changed color to 'seriesName',
             title  = title_col, #tiall_data_melted_filtered['tableTitle'].unique()[0]
-            color_discrete_sequence=px.colors.qualitative.Light24,
+            color_discrete_map=color_map,
             facet_col = facet_col,
             category_orders=category_orders
         )
@@ -54,7 +56,7 @@ def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = 
             y=y_col, # Changed y to 'Value'
             color=color_col, #'seriesTitle', # Changed color to 'seriesName',
             title  = title_col, #tiall_data_melted_filtered['tableTitle'].unique()[0]
-            color_discrete_sequence=px.colors.qualitative.Light24,
+            color_discrete_map=color_map,
             facet_col = facet_col,
             category_orders=category_orders
         )

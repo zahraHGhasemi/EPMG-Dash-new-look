@@ -55,7 +55,7 @@ from sqlalchemy import create_engine, text
 # --- Database connection ---
 DB_URL = os.getenv(
     "APP_DB_URL",
-    "postgresql://dash_data_user:2vDoGom9Fee7LlyTIqOfcQW4eU3TI11v@dpg-d3sbvmndiees738bd16g-a.oregon-postgres.render.com/dash_data"
+    'postgresql://neondb_owner:npg_R7ugMkq3NQFO@ep-fragrant-truth-ab92jg3a-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 )
 
 engine = create_engine(DB_URL, echo=False)

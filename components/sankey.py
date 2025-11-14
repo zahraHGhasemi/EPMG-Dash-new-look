@@ -52,7 +52,9 @@ def sankey_layout ():
                     size="lg",            # spinner size
                     type="border"         # or "grow"
                 )
-            ]),
+            ])
+        ]),
+        dbc.Row([
             dbc.Col([
                 dbc.Spinner(
                     dcc.Graph(
@@ -65,7 +67,7 @@ def sankey_layout ():
                     type="border"         # or "grow"
                 )
             ])
-        ]),
+        ])
 
     ])
     

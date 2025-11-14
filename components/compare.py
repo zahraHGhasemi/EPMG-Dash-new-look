@@ -7,43 +7,64 @@ from components.all_charts import options_layout
 
 scenarios = get_scenarios()
 
+
+    
 def compare_charts_layout():
     base = options_layout()
     base.children.append(
+        dbc.Accordion([
+            dbc.AccordionItem([
+                dbc.Row([
+                    dbc.Col([
+                        html.Label("Compare Mode"),
+                        dbc.RadioItems(
+                            id = 'compare-radio',
+                            options=[
+                                {'label': 'Yes', 'value': 1},
+                                {'label': 'No', 'value': 0},
+                            ],
+                            value=0,  # Default selection
+                            inline=True
+                        )
+                    ],width = 3),
+                    dbc.Col([
+                        html.Label("Compare Scenario", className="control-label"),
+                        dcc.Dropdown(
+                            id='compare-scenario-dropdown',
+                            options=[{'label': s, 'value': s} for s in scenarios],
+                            value=scenarios[1] if len(scenarios) > 1 else None,
+                        ),
+                    ], width=6),
+                    dbc.Col([
+                        html.Label("Show difference", className="control-label"),
+                        dbc.RadioItems(
+                            id='difference-radio',
+                            options=[
+                                {'label': 'Yes', 'value': 'yes'},
+                                {'label': 'No', 'value': 'no'},
+                            ],
+                            value='no',  # Default selection
+                            inline=True
+                        ) 
+                    ],width = 3)
+                ])
+            ], title = 'Compare')
+        ], start_collapsed=True,)
+
+    
+    )
+    base.children.append(
         dbc.Row([
-            dbc.Col([
-                html.Label("Compare Mode"),
-                dbc.RadioItems(
-                    id = 'compare-radio',
-                    options=[
-                        {'label': 'Yes', 'value': 1},
-                        {'label': 'No', 'value': 0},
-                    ],
-                    value=0,  # Default selection
-                    inline=True
-                )
-            ],width = 3),
-            dbc.Col([
-                html.Label("Compare Scenario", className="control-label"),
-                dcc.Dropdown(
-                    id='compare-scenario-dropdown',
-                    options=[{'label': s, 'value': s} for s in scenarios],
-                    value=scenarios[1] if len(scenarios) > 1 else None,
-                ),
-            ], width=6),
-            dbc.Col([
-                html.Label("Show difference", className="control-label"),
-                dbc.RadioItems(
-                    id='difference-radio',
-                    options=[
-                        {'label': 'Yes', 'value': 'yes'},
-                        {'label': 'No', 'value': 'no'},
-                    ],
-                    value='no',  # Default selection
-                    inline=True
-                ) 
-            ],width = 3)
-        ])
+            dbc.Accordion(
+                children = [
+                    dbc.AccordionItem([
+                        html.Div([], id = 'color-accordion' )
+                    ],title = 'Color')
+                ],
+                start_collapsed=True,
+                always_open=False
+            )
+        ])    
     )
     base.children.append(
         dbc.Row([
@@ -64,5 +85,19 @@ def compare_charts_layout():
                 #         config={'responsive': True})
             ])
         ])
+    )
+    base.children.append(
+        dbc.Row([
+                dbc.Col(html.Hr(), width=10),
+                 dbc.Col([
+                    dbc.Button(
+                        "⬇️ Download CSV",
+                        id="btn-download",
+                        color="primary",
+                        className="ms-2"
+                    ),
+                    dcc.Download(id="download-dataframe-csv")
+                ], width="auto"),
+            ], align="center", className="mb-3"),   
     )
     return base

@@ -70,54 +70,6 @@ def options_layout():
     ])
 def all_charts_layout():
     return (
-        # dbc.Row([
-        #     html.Label("Year Range:"),
-        #         dcc.RangeSlider(
-        #             id='year-slider',
-        #             min= 2018, #all_data_melted['Year'].min(),
-        #             max= 2050, #all_data_melted['Year'].max()-1,
-        #             value=[2018, 2050],
-        #             marks={str(year): str(year) for year in range( 2018,2050,1)}, #range(all_data_melted['Year'].min(), all_data_melted['Year'].max(), 1)},
-        #             step=1
-        #         ),
-        #     dbc.Col([
-        #         html.Div([
-                    
-        #             html.Label("Chart Types:"),
-        #             dbc.RadioItems(
-        #                 id='chart-type-radio',
-        #                 options=[
-        #                     {'label': 'Bar', 'value': 'bar'},
-        #                     {'label': 'Line', 'value': 'line'},
-        #                     {'label': 'Area', 'value': 'area'},
-        #                 ],
-        #                 value='bar',  # Default selection
-        #                 # inline=True
-        #             ),
-        #             html.Label("Sector:"),
-        #             dbc.RadioItems(
-        #                 id="category-radio",
-        #                 options = ['Supply', 'Power', 'Transport', 'Residential', 'Services',
-        #                             'Industry', 'Agriculture', 'System'],
-        #                 value = 'Supply',
-        #                 labelStyle={"display": "block"},
-        #                 # inline=True
-        #             ),
-        #             html.Label('Subsector:'),
-        #             dbc.RadioItems(
-        #                 id='subcategory-radio',
-        #                 options=[],  # To be populated based on category selection
-        #                 value='Biodiesel Supply by Source',  # Default value
-        #                 # inline=True
-        #             ),
-        #             html.Button("Generate Chart", id="generate_btn", n_clicks=1)
-        #         ])
-        #     ], width=2 ),
-        #     dbc.Col(
-        #         dcc.Graph(id='selected-graph', style={'height': '600px'}),
-        #         width=10
-        #     )
-        # ])
         dbc.Container([
             options_layout(),
             dbc.Row([
@@ -144,49 +96,5 @@ def all_charts_layout():
                     width=12
                 )
             ])
-        ])
-
-            # html.Div([
-            #     html.Label("Year Range:"),
-            #     dcc.RangeSlider(
-            #         id='year-slider',
-            #         min= 2018, #all_data_melted['Year'].min(),
-            #         max= 2050, #all_data_melted['Year'].max()-1,
-            #         value=[2018, 2050],
-            #         marks={str(year): str(year) for year in range( 2018,2050,1)}, #range(all_data_melted['Year'].min(), all_data_melted['Year'].max(), 1)},
-            #         step=1
-            #     ),
-            #     html.Label("Chart Types:"),
-            #     dbc.RadioItems(
-            #         id='chart-type-radio',
-            #         options=[
-            #             {'label': 'Bar', 'value': 'bar'},
-            #             {'label': 'Line', 'value': 'line'},
-            #             {'label': 'Area', 'value': 'area'},
-            #         ],
-            #         value='bar',  # Default selection
-            #         inline=True
-            #     ),
-            #     html.Label("Sector:"),
-            #     dbc.RadioItems(
-            #         id="category-radio",
-            #         options = ['Supply', 'Power', 'Transport', 'Residential', 'Services',
-            #                     'Industry', 'Agriculture', 'System'],
-            #         value = 'Supply',
-            #         labelStyle={"display": "block"},
-            #         inline=True
-            #     ),
-            #     html.Label('Subsector:'),
-            #     dbc.RadioItems(
-            #         id='subcategory-radio',
-            #         options=[],  # To be populated based on category selection
-            #         value='Biodiesel Supply by Source',  # Default value
-            #         inline=True
-            #     ),
-            #     html.Button("Generate Chart", id="generate_btn", n_clicks=1),
-
-            #     dcc.Graph(id='selected-graph')
-            # ]),
-            
-        
+        ])        
     )

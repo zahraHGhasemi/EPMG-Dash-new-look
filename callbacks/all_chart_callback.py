@@ -47,38 +47,38 @@ def register_all_chart_callbacks(app):
         return options, value
     
     
-    @app.callback(
-        Output('selected-graph', 'figure'),
-        Input('subcategory-dropdown', 'value'),
-        Input('category-dropdown', 'value'),
-        Input('scenario-chart-dropdown', 'value'),
-        Input('year-slider', 'value'),
-        Input('chart-type-dropdown', 'value'),
-        Input('unit-dropdown', 'value')
-        # Input('generate_btn', 'n_clicks'),
-        # prevent_initial_call=True  
-    )
-    def update_graph(table_name,category, scenario, year_range, chart_types, unit):
-        table_id = get_table_id(table_name,category)
-        df = get_filtered_df(table_id, scenario, year_range)
+    # @app.callback(
+    #     Output('selected-graph', 'figure'),
+    #     Input('subcategory-dropdown', 'value'),
+    #     Input('category-dropdown', 'value'),
+    #     Input('scenario-chart-dropdown', 'value'),
+    #     Input('year-slider', 'value'),
+    #     Input('chart-type-dropdown', 'value'),
+    #     Input('unit-dropdown', 'value')
+    #     # Input('generate_btn', 'n_clicks'),
+    #     # prevent_initial_call=True  
+    # )
+    # def update_graph(table_name,category, scenario, year_range, chart_types, unit):
+    #     table_id = get_table_id(table_name,category)
+    #     df = get_filtered_df(table_id, scenario, year_range)
 
-        if unit in dict_unit.keys():
-            df = unit_detect( unit, df)
-        return plot_chart(df, chart_types)
+    #     if unit in dict_unit.keys():
+    #         df = unit_detect( unit, df)
+    #     return plot_chart(df, chart_types)
     
-    @app.callback(
-        Output("download-dataframe-csv", "data"),
-        Input("btn-download", "n_clicks"),
-        State('subcategory-dropdown', 'value'),
-        State('category-dropdown', 'value'),
-        State('scenario-chart-dropdown', 'value'),
-        State('year-slider', 'value'),
-        State('chart-type-dropdown', 'value'),
-        prevent_initial_call=True
-    )
-    def download_current_chart(n_clicks, table_name,category, scenario, year_range, chart_types):
-        table_id = get_table_id(table_name,category)
-        df = get_filtered_df(table_id, scenario, year_range)
-        return dcc.send_data_frame(df.to_csv, f"chart_data_{year_range}.csv", index=False)
+    # @app.callback(
+    #     Output("download-dataframe-csv", "data"),
+    #     Input("btn-download", "n_clicks"),
+    #     State('subcategory-dropdown', 'value'),
+    #     State('category-dropdown', 'value'),
+    #     State('scenario-chart-dropdown', 'value'),
+    #     State('year-slider', 'value'),
+    #     State('chart-type-dropdown', 'value'),
+    #     prevent_initial_call=True
+    # )
+    # def download_current_chart(n_clicks, table_name,category, scenario, year_range, chart_types):
+    #     table_id = get_table_id(table_name,category)
+    #     df = get_filtered_df(table_id, scenario, year_range)
+    #     return dcc.send_data_frame(df.to_csv, f"chart_data_{year_range}.csv", index=False)
     
     

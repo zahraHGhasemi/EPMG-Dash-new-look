@@ -8,6 +8,7 @@ from dash import dcc
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+import colorsys
 
 def prepare_sankey_data_energy_source_to_sector(scenario, year):
     df_agr = get_filtered_df("AGR_FEC", scenario, [year,year])
@@ -88,32 +89,74 @@ def prepare_sankey_data_SEAI(scenario, year):
     sum_in = df_filtered.loc[df_filtered['seriesTitle'] == "Primary Energy", 'Value'].sum()
     sum_out = df_filtered.loc[df_filtered['target'] == "Primary Energy", 'Value'].sum()
     return df_filtered
+def pastel_continuous_palette(n, s=0.35, v=0.95):
+    
+    colors = []
+    for i in range(n):
+        h = i / n                   # distribute hue 0–1
+        r, g, b = colorsys.hsv_to_rgb(h, s, v)
+        colors.append(f'rgb({int(r*255)}, {int(g*255)}, {int(b*255)})')
+    return colors
 
-
-def draw_sankey(df_all, year):
-    level1 = df_all['seriesTitle'].unique().tolist()  # energy sources
-    level2 = df_all['target'].unique().tolist()       # sectors
-    nodes = level1 + level2
+def link_colors(df_1, df_2):
+    level1 = df_1['seriesTitle'].unique().tolist()  
+    level2 = df_1['target'].unique().tolist()       
+    level3 = df_2['seriesTitle'].unique().tolist()  
+    level4 = df_2['target'].unique().tolist()  
+         
+    nodes = list(dict.fromkeys(level1 + level2 + level3 + level4))
     node_indices = {name: i for i, name in enumerate(nodes)}
 
     n = len(nodes)
-    palette = px.colors.qualitative.Pastel1
-    node_colors = (palette * ((n // len(palette)) + 1))[:n]
+    node_colors = pastel_continuous_palette(n)
+    
+    return nodes, node_indices, node_colors
+def compute_node_totals(df, nodes):
+    # initialize
+    total_in  = {node: 0 for node in nodes}
+    total_out = {node: 0 for node in nodes}
 
+    # accumulate outgoing values
+    for _, row in df.iterrows():
+        total_out[row['seriesTitle']] += row['Value']
+
+    # accumulate incoming values
+    for _, row in df.iterrows():
+        total_in[row['target']] += row['Value']
+
+    # final computed totals
+    totals = {}
+
+    for node in nodes:
+        tin  = total_in[node]
+        tout = total_out[node]
+
+        if tin == 0:
+            totals[node] = tout
+        elif tout == 0:
+            totals[node] = tin
+        elif tin == tout:
+            totals[node] = tin
+        else:
+            totals[node] = -1
+
+    return totals
+def draw_sankey(df_all, year, nodes, node_indices, node_colors):
     source = df_all['seriesTitle'].map(node_indices)
     target = df_all['target'].map(node_indices)
     value  = df_all['Value']
     link_colors = [node_colors[s] for s in source]
 
-    df_links = pd.DataFrame({
-        "source": df_all['seriesTitle'],
-        "target": df_all['target'],
-        "value": df_all['Value']
-    })
+    totals = compute_node_totals(df_all, nodes)
 
+    # label = name + total under it
+    labels = [
+        f"{node}<br>{totals[node]:.1f}"
+        for node in nodes
+    ]
     fig = go.Figure(go.Sankey(
         node=dict(
-            label=nodes,
+            label=labels,
             color = node_colors
         ),
         link=dict(
@@ -145,6 +188,6 @@ def register_sankey_callback(app):
             df_all = prepare_sankey_data_SEAI(scenario, year[0])
             df_all_end = prepare_sankey_data_SEAI(scenario, year[1])
                 # Nodes
-
-        return draw_sankey(df_all, year[0]), draw_sankey(df_all_end, year[1])
+        node, node_indices, node_colors = link_colors(df_all, df_all_end)
+        return draw_sankey(df_all, year[0], node, node_indices, node_colors), draw_sankey(df_all_end, year[1], node, node_indices, node_colors)
     
