@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String
 from flask_login import UserMixin
-from database import Base
-
+# from database import Base
+from utils.database_utils import Base
 class User(UserMixin, Base):
     __tablename__ = "users"
 

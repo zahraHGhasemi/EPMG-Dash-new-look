@@ -35,7 +35,8 @@
 
 from flask import Blueprint, render_template, request, redirect, current_app
 from flask_login import login_user, logout_user, login_required
-from database import SessionLocal
+# from database import SessionLocal
+from utils.database_utils import SessionLocal
 from auth.models import User
 from werkzeug.security import check_password_hash
 from flask import session

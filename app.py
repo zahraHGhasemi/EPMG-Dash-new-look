@@ -119,7 +119,7 @@
 from flask import Flask, render_template
 from flask_login import LoginManager
 from auth.models import User
-from database import SessionLocal
+from utils.database_utils import SessionLocal
 from auth.auth_routes import auth_bp
 from dash_app.app import init_dash
 from auth.admin_routes import admin_bp
