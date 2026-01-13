@@ -8,7 +8,7 @@ flask-caching
 sqlalchemy
 SQLAlchemy>=2.0.0
 psycopg2-binary>=2.9.0
-colorsys
+
 flask-login
 werkzeug
 sqlalchemy
