@@ -20,9 +20,11 @@ def register_overview_callbacks(app):
         if metric == 'FEC':
             data_base = data_melted_base[data_melted_base['tableName'] == 'SYS_FEC_Fuel']
             data_selected = all_data_melted[all_data_melted['tableName'] == 'SYS_FEC_Fuel']
+
         elif metric == 'Import':
             data_base = data_melted_base[data_melted_base['tableName'] == 'SYS_NRG-Import']
             data_selected = all_data_melted[all_data_melted['tableName'] == 'SYS_NRG-Import']
+            
         elif metric == 'Renewable':
             data_base = data_melted_base[(data_melted_base['tableName'] == 'PWR_Gen-ELCC')& 
                                                 (data_melted_base['seriesName'].isin(renewable_list))]

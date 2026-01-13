@@ -2,9 +2,13 @@ from dash import html
 from dash import dcc
 from utils.plot_chart import plot_chart
 import dash_bootstrap_components as dbc
-from utils.dataframe_melter import get_scenarios
+# from utils.dataframe_melter import get_scenarios
+from utils.get_data import get_scenarios, get_user_df
+from config.constants import START_YEAR, END_YEAR, DEFAULT_START_YEAR, DEFAULT_END_YEAR
+# df_override = get_user_df()  # Replace with actual DataFrame if needed
+# scenarios = get_scenarios(df_override=df_override)
+# print("Available scenarios:", scenarios)
 
-scenarios = get_scenarios()
 def options_layout():
     return dbc.Container([
     dbc.Row([
@@ -12,10 +16,10 @@ def options_layout():
                 html.Label("Year Range"),
                 dcc.RangeSlider(
                     id='year-slider',
-                    min= 2018, #all_data_melted['Year'].min(),
-                    max= 2050, #all_data_melted['Year'].max()-1,
-                    value=[2018, 2050],
-                    marks={str(year): str(year) for year in range( 2018,2050,1)}, #range(all_data_melted['Year'].min(), all_data_melted['Year'].max(), 1)},
+                    min= START_YEAR, #all_data_melted['Year'].min(),
+                    max= END_YEAR, #all_data_melted['Year'].max()-1,
+                    value=[DEFAULT_START_YEAR, DEFAULT_END_YEAR],
+                    marks={str(year): str(year) for year in range( START_YEAR+2,END_YEAR,5)}, #range(all_data_melted['Year'].min(), all_data_melted['Year'].max(), 1)},
                     step=1
                 )
             ])
@@ -25,8 +29,8 @@ def options_layout():
                 html.Label("Scenario"),
                 dcc.Dropdown(
                     id='scenario-chart-dropdown',
-                    options= [{'label': s, 'value': s} for s in scenarios],
-                    value= scenarios[0] if len(scenarios) > 0 else None,
+                    # options= [{'label': s, 'value': s} for s in scenarios],
+                    # value= scenarios[0] if len(scenarios) > 0 else None,
                 )
             ], width=4),
             
@@ -34,9 +38,9 @@ def options_layout():
                 html.Label("Sector"),
                 dcc.Dropdown(
                     id='category-dropdown',
-                    options= ['System', 'Supply', 'Power', 'Transport', 'Residential', 'Services',
-                                'Industry', 'Agriculture'],
-                    value = 'System',
+                    # options= ['System', 'Supply', 'Power', 'Transport', 'Residential', 'Services',
+                    #             'Industry', 'Agriculture'],
+                    # value = 'System',
                 )
             ], width=4),
             dbc.Col([

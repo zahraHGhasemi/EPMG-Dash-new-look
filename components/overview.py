@@ -1,10 +1,11 @@
 import dash_bootstrap_components as dbc
 from dash import html, dcc
-from utils.dataframe_melter import get_scenarios
-
+# from utils.dataframe_melter import get_scenarios
+from utils.get_data import get_scenarios
 # scenarios = get_scenarios()
 DEFAULT_YEAR = 2024
 DEFAULT_YEAR_END = 2050
+
 
 def get_scenario_dropdown():
     try:

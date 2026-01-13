@@ -1,7 +1,7 @@
 
 from dash import Input, Output, ALL, State
 from utils.get_data import get_categories, get_subcategories, get_table_id, get_subcategory_name
-from utils.get_data import get_filtered_df
+from utils.get_data import get_filtered_df, get_user_df
 from utils.plot_chart import plot_chart
 from utils.unit_handler import unit_detect, dict_unit
 import pandas as pd
@@ -10,6 +10,10 @@ import plotly.express as px
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 import colorsys
+from flask import has_request_context
+from data_provider.sql_data import SQLDataProvider
+from data_provider.dataframe_data import DataFrameProvider
+
 def pastel_continuous_palette(n, s=0.35, v=0.95):
     colors = []
     for i in range(n):
@@ -19,7 +23,18 @@ def pastel_continuous_palette(n, s=0.35, v=0.95):
         colors.append(hex_color)
     return colors
 
-def register_compare_chart_callbacks(app):
+def register_compare_chart_callbacks(app, provider = SQLDataProvider(table_name="observations")):
+    @app.callback(
+        Output('compare-scenario-dropdown', 'options'),
+        Output('compare-scenario-dropdown', 'value'),
+        Input('tabs', 'value')  # just a dummy input to trigger on load
+    )
+    def update_compare_scenarios(tab_value):
+        scenarios = sorted(provider.get_scenarios())
+        value = scenarios[1] if len(scenarios) > 1 else None
+        options = [{"label": s, "value": s} for s in scenarios]
+
+        return options, value
     @app.callback(
         Output('color-accordion', 'children'),
         Input('subcategory-dropdown', 'value'),
@@ -28,9 +43,14 @@ def register_compare_chart_callbacks(app):
         Input('year-slider', 'value')
     )
     def update_color_accordion(table_name,category, scenario, year_range):
-        table_id = get_table_id(table_name,category)
-        df = get_filtered_df(table_id, scenario, year_range)
-
+        # df_user = None
+        # if data_mode == "user" and has_request_context():
+        #     df_user = get_user_df()
+        
+        # table_id = get_table_id(table_name,category, df_override=df_user)
+        # df = get_filtered_df(table_id, scenario, year_range, df_override=df_user)
+        table_id = provider.get_table_id(table_name, category)
+        df = provider.get_filtered_df(table_id, scenario, year_range)
         series = df['seriesTitle'].unique()
         default_colors = pastel_continuous_palette(len(series))
 
@@ -68,13 +88,19 @@ def register_compare_chart_callbacks(app):
 
     )
     def update_graph(table_name,category, scenario, year_range, chart_types, compare_scenario, difference_option, unit,compare_value, color_values):
-        table_id = get_table_id(table_name,category)
-        df = get_filtered_df(table_id, scenario, year_range)
+        # df_user = None
+        # if data_mode == "user" and has_request_context():
+        #     df_user = get_user_df()
+        # table_id = get_table_id(table_name,category, df_override=df_user)
+        # df = get_filtered_df(table_id, scenario, year_range, df_override=df_user)
+        table_id = provider.get_table_id(table_name, category)
+        df = provider.get_filtered_df(table_id, scenario, year_range)
         series_names = df['seriesTitle'].unique()
         color_map = {series_names[i]: color_values[i] for i in range(len(series_names))}
         if compare_value:
-            df_compare = get_filtered_df(table_id, compare_scenario, year_range)
-
+            # df_compare = get_filtered_df(table_id, compare_scenario, year_range, df_override=df_user)
+            df_compare = provider.get_filtered_df(table_id, compare_scenario, year_range)
+            
             if unit in dict_unit.keys():
                 df = unit_detect(unit, df)
                 df_compare = unit_detect(unit, df_compare)
@@ -163,8 +189,15 @@ def register_compare_chart_callbacks(app):
         prevent_initial_call=True
     )
     def download_current_chart(n_clicks, table_name,category, scenario, year_range, chart_types):
-        table_id = get_table_id(table_name,category)
-        df = get_filtered_df(table_id, scenario, year_range)
+        df_override = None
+        # if data_mode == "user" and has_request_context():
+        #     df_override = get_user_df()
+        
+        # table_id = get_table_id(table_name,category, df_override=df_override)
+        # df = get_filtered_df(table_id, scenario, year_range, df_override=df_override)
+        table_id = provider.get_table_id(table_name, category)
+        df = provider.get_filtered_df(table_id, scenario, year_range)
+
         return dcc.send_data_frame(df.to_csv, f"chart_data_{year_range}.csv", index=False)
             
 

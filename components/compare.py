@@ -2,13 +2,15 @@ from dash import html
 from dash import dcc
 from utils.plot_chart import plot_chart
 import dash_bootstrap_components as dbc
-from utils.dataframe_melter import get_scenarios
+# from utils.dataframe_melter import get_scenarios
 from components.all_charts import options_layout
+from utils.get_data import get_scenarios,get_user_df
+from data_provider.dataframe_data import DataFrameProvider
+from data_provider.sql_data import SQLDataProvider
+# df_override = get_user_df()  # Replace with actual DataFrame if needed
+# scenarios = get_scenarios(df_override=df_override)
 
-scenarios = get_scenarios()
 
-
-    
 def compare_charts_layout():
     base = options_layout()
     base.children.append(
@@ -31,8 +33,8 @@ def compare_charts_layout():
                         html.Label("Compare Scenario", className="control-label"),
                         dcc.Dropdown(
                             id='compare-scenario-dropdown',
-                            options=[{'label': s, 'value': s} for s in scenarios],
-                            value=scenarios[1] if len(scenarios) > 1 else None,
+                            # options=[{'label': s, 'value': s} for s in scenarios],
+                            # value=scenarios[1] if len(scenarios) > 1 else None,
                         ),
                     ], width=6),
                     dbc.Col([

@@ -14,9 +14,6 @@ def register_tab_content_callbacks(app):
        
         if tab == 'overview':
             return overview_layout
-
-        # elif tab == 'all-charts':
-        #     return all_charts_layout()
         elif tab == 'compare-scenarios':
             return compare_charts_layout()
         elif tab == 'about':

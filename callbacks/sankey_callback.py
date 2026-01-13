@@ -9,13 +9,16 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import colorsys
+from data_provider.sql_data import SQLDataProvider
 
-def prepare_sankey_data_energy_source_to_sector(scenario, year):
-    df_agr = get_filtered_df("AGR_FEC", scenario, [year,year])
-    df_ind = get_filtered_df("IND_FEC", scenario, [year,year])
-    df_srv = get_filtered_df("SRV_FEC", scenario, [year,year])
-    df_rsd = get_filtered_df("RSD_FEC", scenario, [year,year])
-    df_tra = get_filtered_df("TRA_FEC", scenario, [year,year])
+
+
+def prepare_sankey_data_energy_source_to_sector(scenario, year,provider = SQLDataProvider(table_name="observations")):
+    df_agr = provider.get_filtered_df("AGR_FEC", scenario, [year,year])
+    df_ind = provider.get_filtered_df("IND_FEC", scenario, [year,year])
+    df_srv = provider.get_filtered_df("SRV_FEC", scenario, [year,year])
+    df_rsd = provider.get_filtered_df("RSD_FEC", scenario, [year,year])
+    df_tra = provider.get_filtered_df("TRA_FEC", scenario, [year,year])
 
     df_agr_filtered = df_agr[['seriesTitle', 'Value']].copy()
     df_agr_filtered['target'] = 'Agriculture'
@@ -46,10 +49,10 @@ def handle_negative_elec(df_filtered):
     
     return df_filtered
 
-def prepare_sankey_data_SEAI(scenario, year):
-    df_SYS_TPED = get_filtered_df('SYS_TPED', scenario, [year, year])
-    df_FEC_Sector = get_filtered_df("SYS_FEC_Sector", scenario, [year,year])
-    df_renewable = get_filtered_df('PWR_Gen-ELCC', scenario, [year,year])
+def prepare_sankey_data_SEAI(scenario, year, provider = SQLDataProvider(table_name="observations")):
+    df_SYS_TPED = provider.get_filtered_df('SYS_TPED', scenario, [year, year])
+    df_FEC_Sector = provider.get_filtered_df("SYS_FEC_Sector", scenario, [year,year])
+    df_renewable = provider.get_filtered_df('PWR_Gen-ELCC', scenario, [year,year])
     
     df_filtered = df_SYS_TPED[['seriesTitle','Value']]
     df_filtered.loc[len(df_filtered)] = ["Wind offshore", 0]
@@ -135,9 +138,11 @@ def compute_node_totals(df, nodes):
             totals[node] = tout
         elif tout == 0:
             totals[node] = tin
-        elif tin == tout:
+        elif tin == tout or abs(tin - tout) < 1e-3:
             totals[node] = tin
         else:
+            print(tin, tout)
+            print('Mismatch in totals for node')
             totals[node] = -1
 
     return totals
@@ -170,7 +175,19 @@ def draw_sankey(df_all, year, nodes, node_indices, node_colors):
         title = year
     )
     return fig
-def register_sankey_callback(app):
+
+def register_sankey_callback(app, provider = SQLDataProvider(table_name="observations")):
+    @app.callback(
+        Output('scenario-sankey-dropdown', 'options'),
+        Output('scenario-sankey-dropdown', 'value'),
+        Input('tabs', 'value')
+    )
+    def update_sankey_scenario_options(tab_value):
+        scenarios = sorted(provider.get_scenarios())
+        value = scenarios[0] if len(scenarios) > 0 else None
+        options = [{"label": s, "value": s} for s in scenarios]
+
+        return options, value
     @app.callback(
         Output('sankey-diagram', 'figure'),
         Output('sankey-end-diagram', 'figure'),
@@ -181,12 +198,12 @@ def register_sankey_callback(app):
     )
     def update_sankey(year, scenario, title):
         if title == 0:
-            df_all = prepare_sankey_data_energy_source_to_sector(scenario, year[0])
-            df_all_end = prepare_sankey_data_energy_source_to_sector(scenario, year[1])
+            df_all = prepare_sankey_data_energy_source_to_sector(scenario, year[0], provider = provider)
+            df_all_end = prepare_sankey_data_energy_source_to_sector(scenario, year[1], provider = provider)
 
         elif title == 1:
-            df_all = prepare_sankey_data_SEAI(scenario, year[0])
-            df_all_end = prepare_sankey_data_SEAI(scenario, year[1])
+            df_all = prepare_sankey_data_SEAI(scenario, year[0], provider = provider)
+            df_all_end = prepare_sankey_data_SEAI(scenario, year[1], provider = provider)
                 # Nodes
         node, node_indices, node_colors = link_colors(df_all, df_all_end)
         return draw_sankey(df_all, year[0], node, node_indices, node_colors), draw_sankey(df_all_end, year[1], node, node_indices, node_colors)

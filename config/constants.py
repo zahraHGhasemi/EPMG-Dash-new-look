@@ -1,0 +1,24 @@
+
+START_YEAR = 2018
+END_YEAR = 2050
+DEFAULT_START_YEAR = 2024
+DEFAULT_END_YEAR = 2050
+
+CATEGORY_DICT = { 
+    'Transport': 'tra',
+    'Residential': 'rsd',
+    'Services': 'srv',
+    'Industry': 'ind',
+    'Power': 'pwr',
+    'Supply': 'sup',
+    'Agriculture': 'agr',
+    'System': 'sys',
+    'tra': 'Transport',
+    'rsd': 'Residential',
+    'srv': 'Services',
+    'ind': 'Industry',
+    'pwr': 'Power',
+    'sup': 'Supply',
+    'agr': 'Agriculture',
+    'sys': 'System'
+}

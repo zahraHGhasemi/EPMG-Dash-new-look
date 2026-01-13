@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h2 class="mb-4">Upload Your Scenario</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" enctype="multipart/form-data">
+
+        <div class="mb-3">
+            <label class="form-label">Scenario Name</label>
+            <input type="text" class="form-control" name="scenario_name" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Upload CSV Files</label>
+            <input type="file" class="form-control" name="files" multiple accept=".csv" required>
+            <small class="text-muted">You can select multiple CSV files</small>
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            Upload & Visualize
+        </button>
+
+    </form>
+
+</div>
+{% endblock %}

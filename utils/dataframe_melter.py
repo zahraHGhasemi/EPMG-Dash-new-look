@@ -93,16 +93,15 @@ def get_data_melted(scenario=[], year_range=[]):
         query += ' AND "Year" BETWEEN :start_year AND :end_year'
         params['start_year'] = year_range[0]
         params['end_year'] = year_range[1]
-
     df = read_sql(query, params=params)
     return df
 
-def get_scenarios():
-    # scenarios = sorted(all_data_melted['Scenario'].unique())
-    # return scenarios
-    query = 'SELECT DISTINCT "Scenario" FROM observations ORDER BY "Scenario"'
-    df = read_sql(query)
-    return sorted(df["Scenario"].dropna().unique().tolist())
+# def get_scenarios():
+#     # scenarios = sorted(all_data_melted['Scenario'].unique())
+#     # return scenarios
+#     query = 'SELECT DISTINCT "Scenario" FROM observations ORDER BY "Scenario"'
+#     df = read_sql(query)
+#     return sorted(df["Scenario"].dropna().unique().tolist())
    
 def save_data(df, file_path):
     try:
@@ -142,4 +141,4 @@ def load_data(file_path):
 #     save_data(all_data_melted, "data_new/all_data_melted.csv")
 
   
-scenarios = get_scenarios()
+# scenarios = get_scenarios()

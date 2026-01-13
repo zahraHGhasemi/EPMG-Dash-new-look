@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>{% block title %}EPMG{% endblock %}</title>
+
+    <!-- Bootstrap -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    >
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark px-4">
+    <a class="navbar-brand" href="/">EPMG</a>
+
+    <div class="collapse navbar-collapse">
+        <!-- LEFT -->
+        <ul class="navbar-nav me-auto">
+            <li class="nav-item">
+                <a class="nav-link" href="/">Home</a>
+            </li>
+<!-- 
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
+                    Recent Studies
+                </a>
+                <ul class="dropdown-menu">
+                    <li>Study 1</li>
+                    <li>Study 2</li>
+                    <li><a class="dropdown-item" href="/studies/recent?study=1">Study 1</a></li>
+                    <li><a class="dropdown-item" href="/studies/recent?study=2">Study 2</a></li> 
+                </ul>
+            </li>
+
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
+                    Archive
+                </a>
+                <ul class="dropdown-menu">
+                    <li>Study 3</li>
+                    <li>Study 4</li>
+                    <li><a class="dropdown-item" href="/studies/archive?study=3">Study 3</a></li>
+                    <li><a class="dropdown-item" href="/studies/archive?study=4">Study 4</a></li>
+                </ul>
+            </li> -->
+        </ul>
+
+        <!-- RIGHT -->
+        <ul class="navbar-nav ms-auto">
+            {% if current_user.is_authenticated %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle"
+                    href="#"
+                    id="userDropdown"
+                    role="button"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false">
+                        Hello {{ current_user.username }}
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-end"
+                        aria-labelledby="userDropdown">
+
+                        <li>
+                            {% if current_user.role == "admin" %}
+                                <a class="dropdown-item" href="/admin/panel">
+                                    Admin Panel
+                                </a>
+                            {% else %}
+                                <a class="dropdown-item" href="/user/panel">
+                                    User Panel
+                                </a>
+                            {% endif %}
+                        </li>
+
+                        <li><hr class="dropdown-divider"></li>
+
+                        <li>
+                            <a class="dropdown-item text-danger" href="/logout">
+                                Logout
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            {% else %}
+                <li class="nav-item">
+                    <a class="nav-link" href="/login">Login</a>
+                </li>
+            {% endif %}
+        </ul>
+
+    </div>
+</nav>
+
+<div class="container-fluid mt-3">
+    {% block content %}{% endblock %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

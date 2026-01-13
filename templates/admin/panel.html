@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-5">
+    <h1 class="mb-2">Admin Panel</h1>
+    <p class="text-muted mb-4">
+        Scenario & metadata management
+    </p>
+
+    <div class="row g-4">
+
+        <!-- Upload Scenario -->
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">📤 Upload Scenario</h5>
+                    <p class="card-text">
+                        Upload new scenario datasets into the system.
+                    </p>
+                    <a href="/admin/upload" class="btn btn-primary">
+                        Go
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Update Dictionaries -->
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">🏷 Update Dictionaries</h5>
+                    <p class="card-text">
+                        Manage table names and series labels.
+                    </p>
+                    <a href="/admin/dictionaries" class="btn btn-primary">
+                        Go
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Scenario -->
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">🗑 Delete Scenario</h5>
+                    <p class="card-text">
+                        Remove scenarios from the system.
+                    </p>
+                    <a href="/admin/remove_scenario" class="btn btn-danger">
+                        Go
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

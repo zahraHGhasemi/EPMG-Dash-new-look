@@ -1,9 +1,10 @@
 import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
 from dash import html, dcc
-from utils.dataframe_melter import get_scenarios
-
-scenarios = get_scenarios()
+# from utils.dataframe_melter import get_scenarios
+from utils.get_data import get_scenarios, get_user_df
+df_override = get_user_df()  # Replace with actual DataFrame if needed
+scenarios = get_scenarios(df_override=df_override)
 def sankey_layout ():
     return dbc.Container([
         dbc.Row([

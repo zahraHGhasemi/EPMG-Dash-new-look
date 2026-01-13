@@ -1,27 +1,72 @@
 from dash import Input, Output, State, ctx, no_update
 from utils.get_data import get_categories, get_subcategories, get_table_id, get_subcategory_name
-from utils.get_data import get_filtered_df
+from utils.get_data import get_filtered_df, get_user_df
 from utils.plot_chart import plot_chart
 from utils.unit_handler import unit_detect, dict_unit
 from dash import dcc
-
-
+from flask import has_request_context
+from config.constants import CATEGORY_DICT
+from data_provider.sql_data import SQLDataProvider
 options_list = ['kt', 'PJ'] 
 
-def register_all_chart_callbacks(app):
+def register_all_chart_callbacks(app, provider = SQLDataProvider(table_name="observations")):
+    @app.callback(
+        Output("scenario-chart-dropdown", "options"),
+        Output("scenario-chart-dropdown", "value"),
+        Input("tabs", "value")  # just a dummy input to trigger on load
+    )
+    def update_scenario_dropdown(tab_value):
+        # from utils.get_data import get_user_df
+        # df_user = get_user_df()
+
+        # if df_user is not None:
+        #     scenarios = sorted(df_user["Scenario"].unique())
+        # else:
+        #     from utils.database_utils import read_sql
+        #     df = read_sql('SELECT DISTINCT "Scenario" FROM observations')
+        #     scenarios = sorted(df["Scenario"].dropna().tolist())
+        scenarios = sorted(provider.get_scenarios())
+        value = scenarios[0] if scenarios else None
+        options = [{"label": s, "value": s} for s in scenarios]
+
+        return options, value
+    @app.callback(
+        Output('category-dropdown', 'options'),
+        Output('category-dropdown', 'value'),
+        Input('tabs', 'value')  # just a dummy input to trigger on load 
+    )
+    def update_category_options(tab_value):
+        # df_override = None
+        # if data_mode == "user" and has_request_context():
+        #     df_override = get_user_df()
+        # # Logic to get categories
+        # categories = get_categories(df_override=df_override)
+        categories = provider.get_categories()
+        if 'sys' in categories:
+            value = 'sys'
+        else:
+            value = categories[0] if categories else None
+        return [{"label": CATEGORY_DICT.get(cat, cat), "value": cat} for cat in categories], value
+    
     @app.callback(
         Output('subcategory-dropdown', 'options'),
         Output('subcategory-dropdown', 'value'),
         Input('category-dropdown', 'value')
     )
     def update_subcategory_options(category):
-        # Logic to get subcategories based on selected category
-        subcategories = get_subcategories(category)
-        if category == 'System':
-            value = 'Domestic CO2 Emissions by Sector'
+        # df_override = None
+        # if data_mode == "user" and has_request_context():
+        #     df_override = get_user_df()
+        # # Logic to get subcategories based on selected category
+        # subcategories = get_subcategories(category, df_override=df_override)
+        subcategories = provider.get_subcategories(category)
+        if category == 'sys' and 'Domestic CO₂ Emissions by Sector' in subcategories:
+            value = 'Domestic CO₂ Emissions by Sector'
         else:
             value = subcategories[0] if subcategories else None
         return [{"label": sub, "value": sub} for sub in subcategories], value
+    
+
     @app.callback(
         Output('unit-dropdown', 'options'),
         Output('unit-dropdown', 'value'),
@@ -31,11 +76,17 @@ def register_all_chart_callbacks(app):
         Input('year-slider', 'value')
     )
     def update_unit(table_name,category, scenario, year_range):
-        table_id = get_table_id(table_name,category)
-        df = get_filtered_df(table_id, scenario, year_range)
+        # df_override = None
+        # if data_mode == "user" and has_request_context():
+        #     df_override = get_user_df()
+        # table_id = get_table_id(table_name,category, df_override=df_override)
+        # df = get_filtered_df(table_id, scenario, year_range, df_override=df_override)
+        table_id = provider.get_table_id(table_name, category)
+        df_unit = provider.get_labels(table_id, scenario, year_range)
         options =[]
         value = None
-        label = df['label'].iloc[0]
+        # label = df['label'].iloc[0]
+        label = df_unit[0] 
         if label == "PJ":
             options = ['PJ', 'TWh', 'ktoe']
         elif label == "kt":

@@ -22,3 +22,47 @@ def load_and_concat_data(directory_path):
     else:
         return pd.DataFrame()
     
+
+import pandas as pd
+import io
+import os
+
+def load_and_concat_uploaded_files(files):
+    """
+    files: list of file-like objects (Flask FileStorage or Dash decoded bytes)
+
+    Returns:
+        pd.DataFrame
+    """
+    df_list = []
+
+    for file in files:
+        try:
+            # --- Case 1: Flask FileStorage ---
+            if hasattr(file, "filename"):
+                filename = file.filename
+                df = pd.read_csv(file)
+
+            # --- Case 2: Dash dcc.Upload (bytes) ---
+            else:
+                filename, content = file
+                content_decoded = io.StringIO(content)
+                df = pd.read_csv(content_decoded)
+
+            # --- Extract scenario name ---
+            scenario_name = (
+                os.path.basename(filename)
+                .replace("mitigation_cb2024-", "")
+                .replace(".csv", "")
+            )
+
+            df["Scenario"] = scenario_name
+            df_list.append(df)
+
+        except Exception as e:
+            print(f"Error loading {filename}: {e}")
+
+    if not df_list:
+        return pd.DataFrame()
+
+    return pd.concat(df_list, ignore_index=True)

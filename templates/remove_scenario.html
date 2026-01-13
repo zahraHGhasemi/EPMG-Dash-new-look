@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Delete Scenarios</h2>
+    <p class="text-muted">Select one or more scenarios to delete permanently from the database.</p>
+
+    <form method="POST" action="{{ url_for('admin.delete_scenarios') }}">
+        <div class="mb-3">
+            {% for scenario in scenarios %}
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="scenarios" value="{{ scenario }}" id="sc-{{ loop.index }}">
+                <label class="form-check-label" for="sc-{{ loop.index }}">{{ scenario }}</label>
+            </div>
+            {% endfor %}
+        </div>
+
+        <button class="btn btn-danger" onclick="return confirm('This will permanently delete selected scenarios. Continue?')">
+            Delete Selected Scenarios
+        </button>
+    </form>
+</div>
+{% endblock %}

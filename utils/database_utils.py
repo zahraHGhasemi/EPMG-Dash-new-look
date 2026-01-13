@@ -1,56 +1,7 @@
-# # utils/db_utils.py
-# import sqlalchemy
 
-# from sqlalchemy import create_engine, text
-# from sqlalchemy.engine.url import make_url
-# import os
-# import pandas as pd
-# from utils.dataframe_melter import load_data
-# # # Configure DB URL via env var for easy switch: default to SQLite file
-# # DB_URL = os.getenv("APP_DB_URL", "sqlite:///data_new/data.db")  
-
-# # # create_engine supports both sqlite and postgresql urls
-# # engine = create_engine(DB_URL, connect_args={"check_same_thread": False} if "sqlite" in DB_URL else {})
-# DB_URL = os.getenv(
-#     "APP_DB_URL",
-#     "postgresql://dash_data_user:2vDoGom9Fee7LlyTIqOfcQW4eU3TI11v@dpg-d3sbvmndiees738bd16g-a.oregon-postgres.render.com/dash_data"
-# )
-
-# engine = create_engine(DB_URL, echo=False)  # echo=True for debug
-
-# def read_sql(query, params=None):
-#     """Return a pandas DataFrame for the given SQL SELECT query."""
-#     with engine.connect() as conn:
-#         return pd.read_sql_query(text(query), conn, params=params)
-
-# def execute_sql(statement, params=None):
-#     """Execute a non-SELECT statement (CREATE INDEX, INSERT, UPDATE, etc.)."""
-#     with engine.begin() as conn:
-#         conn.execute(text(statement), params or {})
-
-# all_data_melted = load_data("data_new/all_data_melted.csv")
-# df = all_data_melted[['tableName', 'seriesName', 'label', 'Scenario', 'Year', 'Value', 'tableTitle', 'seriesTitle', 'cat']]
-# # Optional: ensure column names are normalized
-# df.columns = [c.strip() for c in df.columns]
-
-# # Write to SQL (replace existing)
-# df.to_sql("observations", con=engine, if_exists="replace", index=False)
-
-# # Add indexes (fast lookups)
-# with engine.begin() as conn:
-#     conn.execute(text("CREATE INDEX IF NOT EXISTS idx_obs_table ON observations (tableName)"))
-#     conn.execute(text("CREATE INDEX IF NOT EXISTS idx_obs_series ON observations (seriesName)"))
-#     conn.execute(text("CREATE INDEX IF NOT EXISTS idx_obs_table_title ON observations (tableTitle)"))
-#     conn.execute(text("CREATE INDEX IF NOT EXISTS idx_obs_series_title ON observations (seriesTitle)"))
-#     conn.execute(text("CREATE INDEX IF NOT EXISTS idx_obs_scenario ON observations (Scenario)"))
-#     conn.execute(text("CREATE INDEX IF NOT EXISTS idx_obs_label ON observations (label)"))
-#     conn.execute(text("CREATE INDEX IF NOT EXISTS idx_obs_year ON observations (Year)"))
-#     conn.execute(text("CREATE INDEX IF NOT EXISTS idx_obs_value ON observations (Value)"))
-#     conn.execute(text("CREATE INDEX IF NOT EXISTS idx_obs_cat ON observations (cat)"))
-# utils/database_utils.py
 import os
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, inspect
 
 # --- Database connection ---
 DB_URL = os.getenv(
@@ -79,3 +30,66 @@ def load_data_from_postgres():
     """Load the main dataset (replaces previous CSV loading)."""
     query = "SELECT * FROM observations"
     return read_sql(query)
+
+def write_scenario_to_database(df, table_name="observations"):
+    if df.empty:
+        return {
+            "written": [],
+            "skipped": []
+        }
+    inspector = inspect(engine)
+
+    db_columns = {col["name"] for col in inspector.get_columns(table_name)}
+    df = df[[c for c in df.columns if c in db_columns]]
+
+    uploaded_scenarios = df["Scenario"].dropna().unique().tolist()
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("""
+                SELECT DISTINCT "Scenario"
+                FROM observations
+                WHERE "Scenario" = ANY(:scenarios)
+            """),
+            {"scenarios": uploaded_scenarios}
+        )
+        existing_scenarios = {row[0] for row in result}
+
+    
+    new_scenarios = set(uploaded_scenarios) - existing_scenarios
+
+    if not new_scenarios:
+        return {
+            "written": [],
+            "skipped": uploaded_scenarios
+        }
+
+    df_new = df[df["Scenario"].isin(new_scenarios)]
+
+    df_new.to_sql(
+        table_name,
+        con=engine,
+        if_exists="append",
+        index=False,
+        method="multi",
+        chunksize=5000
+    )
+
+    return {
+        "written": sorted(new_scenarios),
+        "skipped": sorted(existing_scenarios)
+    }
+
+def delete_scenarios_from_database(scenarios: list[str]):
+    if not scenarios:
+        return 0
+
+    with engine.begin() as conn:
+        result = conn.execute(
+            text("""
+                DELETE FROM observations
+                WHERE "Scenario" = ANY(:scenarios)
+            """),
+            {"scenarios": scenarios}
+        )
+
+    return result.rowcount
