@@ -66,3 +66,27 @@ def load_and_concat_uploaded_files(files):
         return pd.DataFrame()
 
     return pd.concat(df_list, ignore_index=True)
+
+def iter_uploaded_files_in_chunks(files, chunksize=500):
+    for file in files:
+
+        # --- Flask FileStorage ---
+        if hasattr(file, "filename"):
+            filename = file.filename
+            reader = pd.read_csv(file, chunksize=chunksize)
+
+        # --- Dash upload ---
+        else:
+            filename, content = file
+            content_decoded = io.StringIO(content)
+            reader = pd.read_csv(content_decoded, chunksize=chunksize)
+
+        scenario_name = (
+            os.path.basename(filename)
+            .replace("mitigation_cb2024-", "")
+            .replace(".csv", "")
+        )
+
+        for chunk in reader:
+            chunk["Scenario"] = scenario_name
+            yield chunk

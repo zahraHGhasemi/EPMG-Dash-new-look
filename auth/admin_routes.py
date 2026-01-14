@@ -1,7 +1,7 @@
 from functools import wraps
 from flask import Blueprint, render_template, abort
 from flask_login import login_required, current_user
-from utils.data_loader import load_and_concat_uploaded_files
+from utils.data_loader import load_and_concat_uploaded_files, iter_uploaded_files_in_chunks
 from utils.dataframe_melter import melt_dataframe
 from utils.database_utils import write_scenario_to_database, execute_sql
 from flask import request, redirect, flash, url_for
@@ -46,25 +46,61 @@ def upload_scenario():
     if not files or not scenario_name:
         flash("Scenario name and files are required", "danger")
         return redirect(url_for("admin.upload_scenario"))
+    
 
-    df_all = load_and_concat_uploaded_files(files)
-    df_prepared, _ = melt_dataframe(df_all)
+    """--------------------------------------------------------------------------------------------------"""
+    import gc
+    # initialize tracking set
+    seen_scenarios = set()
+    written = set()
+    skipped = set()
 
-    # df_prepared["Scenario"] = scenario_name
+    for raw_chunk in iter_uploaded_files_in_chunks(files, chunksize=300):
+        
+        # melt the chunk as before
+        melted_chunk, _ = melt_dataframe(raw_chunk)
 
-    result = write_scenario_to_database(df_prepared)
-
-    if result["written"]:
-        flash(
-            f"Added scenarios: {', '.join(result['written'])}",
-            "success"
+        # write to DB using the new function
+        result = write_scenario_to_database(
+            melted_chunk,
+            seen_scenarios=seen_scenarios
         )
 
-    if result["skipped"]:
-        flash(
-            f"Skipped existing scenarios: {', '.join(result['skipped'])}",
-            "warning"
-        )
+        # update flash tracking sets
+        written.update(result.get("written", []))
+        skipped.update(result.get("skipped", []))
+
+        # 🔥 critical memory cleanup
+        del raw_chunk, melted_chunk
+        import gc
+        gc.collect()
+
+    # show flash messages after all chunks processed
+    if written:
+        flash(f"Added scenarios: {', '.join(written)}", "success")
+
+    if skipped:
+        flash(f"Skipped existing scenarios: {', '.join(skipped)}", "warning")
+
+
+    # df_all = load_and_concat_uploaded_files(files)
+    # df_prepared, _ = melt_dataframe(df_all)
+
+
+    # result = write_scenario_to_database(df_prepared)
+
+
+    # if result["written"]:
+    #     flash(
+    #         f"Added scenarios: {', '.join(result['written'])}",
+    #         "success"
+    #     )
+
+    # if result["skipped"]:
+    #     flash(
+    #         f"Skipped existing scenarios: {', '.join(result['skipped'])}",
+    #         "warning"
+    #     )
     return redirect(url_for("admin.upload_scenario"))
 
 
