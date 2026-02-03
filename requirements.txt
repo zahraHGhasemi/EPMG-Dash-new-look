@@ -17,3 +17,4 @@ Flask-Session
 pyarrow
 fastparquet
 flask_sqlalchemy
+python-dotenv
