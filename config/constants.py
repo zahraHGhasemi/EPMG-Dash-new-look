@@ -4,6 +4,7 @@ END_YEAR = 2050
 DEFAULT_START_YEAR = 2024
 DEFAULT_END_YEAR = 2050
 
+
 CATEGORY_DICT = { 
     'Transport': 'tra',
     'Residential': 'rsd',
@@ -20,5 +21,13 @@ CATEGORY_DICT = {
     'pwr': 'Power',
     'sup': 'Supply',
     'agr': 'Agriculture',
-    'sys': 'System'
+    'sys': 'System',
+    'SYS': 'System',
+    'TRA': 'Transport',
+    'RSD': 'Residential',
+    'SRV': 'Services',
+    'IND': 'Industry',
+    'PWR': 'Power',
+    'SUP': 'Supply',
+    'AGR': 'Agriculture',
 }

@@ -1,7 +1,7 @@
 
 from dash import Input, Output, ALL, State
-from utils.get_data import get_categories, get_subcategories, get_table_id, get_subcategory_name
-from utils.get_data import get_filtered_df, get_user_df
+# from utils.get_data import get_categories, get_subcategories, get_table_id, get_subcategory_name
+# from utils.get_data import get_filtered_df, get_user_df
 from utils.plot_chart import plot_chart
 from utils.unit_handler import unit_detect, dict_unit
 import pandas as pd
@@ -22,19 +22,36 @@ def pastel_continuous_palette(n, s=0.35, v=0.95):
         hex_color = f'#{int(r*255):02X}{int(g*255):02X}{int(b*255):02X}'
         colors.append(hex_color)
     return colors
-
-def register_compare_chart_callbacks(app, provider = SQLDataProvider(table_name="observations")):
+from auth.models import db
+from urllib.parse import urlparse, parse_qs
+session = db.session
+def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=session)):
     @app.callback(
         Output('compare-scenario-dropdown', 'options'),
         Output('compare-scenario-dropdown', 'value'),
-        Input('tabs', 'value')  # just a dummy input to trigger on load
+        # Input('tabs', 'value')  # just a dummy input to trigger on load
+        Input("url", "href")
     )
-    def update_compare_scenarios(tab_value):
-        scenarios = sorted(provider.get_scenarios())
-        value = scenarios[1] if len(scenarios) > 1 else None
-        options = [{"label": s, "value": s} for s in scenarios]
+    def update_scenario_dropdown(href):
+        if not href:
+            return []
 
+        query = parse_qs(urlparse(href).query)
+        study_id = query.get("study_id", [None])[0]
+
+        if not study_id:
+            return []
+
+        scenarios = provider.get_scenarios_for_study(int(study_id))
+        options = [{"label": s.name, "value": s.name} for s in scenarios]
+        value = options[1]["value"] if len(options) > 1 else None
         return options, value
+    # def update_compare_scenarios(tab_value):
+    #     scenarios = sorted(provider.get_scenarios())
+    #     value = scenarios[1] if len(scenarios) > 1 else None
+    #     options = [{"label": s, "value": s} for s in scenarios]
+
+    #     return options, value
     @app.callback(
         Output('color-accordion', 'children'),
         Input('subcategory-dropdown', 'value'),
@@ -50,8 +67,10 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(table_name=
         # table_id = get_table_id(table_name,category, df_override=df_user)
         # df = get_filtered_df(table_id, scenario, year_range, df_override=df_user)
         table_id = provider.get_table_id(table_name, category)
-        df = provider.get_filtered_df(table_id, scenario, year_range)
-        series = df['seriesTitle'].unique()
+        # df = provider.get_filtered_df(table_id, scenario, year_range)
+
+        # series = df['seriesTitle'].unique().
+        series = provider.get_series_titles(table_id)
         default_colors = pastel_continuous_palette(len(series))
 
         children_colors = []
@@ -95,8 +114,9 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(table_name=
         # df = get_filtered_df(table_id, scenario, year_range, df_override=df_user)
         table_id = provider.get_table_id(table_name, category)
         df = provider.get_filtered_df(table_id, scenario, year_range)
-        series_names = df['seriesTitle'].unique()
+        series_names = provider.get_series_titles(table_id)
         color_map = {series_names[i]: color_values[i] for i in range(len(series_names))}
+        df['label'] = unit
         if compare_value:
             # df_compare = get_filtered_df(table_id, compare_scenario, year_range, df_override=df_user)
             df_compare = provider.get_filtered_df(table_id, compare_scenario, year_range)
@@ -107,21 +127,23 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(table_name=
 
             df['source'] = 'scenario'
             df_compare['source'] = 'scenario compare'
-
+            df_compare['label'] = unit
             # Combine dataframes
             df_combined = pd.concat([df, df_compare])
             if difference_option == 'no':
                 df_combined = df_combined.sort_values(by="Year")
-                fig = plot_chart(df_combined, chart_types, facet_col = 'source',category_orders={'source': ['scenario', 'scenario compare']}, color_map=color_map)
+                fig = plot_chart(df_combined, chart_types, facet_col = 'source',category_orders={'source': ['scenario', 'scenario compare']}, color_map=color_map, table_title=table_name)
 
             else:
                 
-                df = df[['tableName','Year', 'seriesTitle', 'Value', 'source', 'tableTitle',  'label']]
-                df_compare = df_compare[['tableName', 'Year', 'seriesTitle', 'Value', 'source', 'tableTitle',  'label']]
+                # df = df[['tableName','Year', 'seriesTitle', 'Value', 'source', 'tableTitle',  'label']]
+                # df_compare = df_compare[['tableName', 'Year', 'seriesTitle', 'Value', 'source', 'tableTitle',  'label']]
             
-                merge_cols = ['tableName', 'Year', 'seriesTitle', 'tableTitle',  'label']
+                # merge_cols = ['tableName', 'Year', 'seriesTitle', 'tableTitle',  'label']
+                # df_merged = pd.merge(df, df_compare, on=merge_cols, suffixes=('_df1','_df2'))
+                
+                merge_cols = [ 'Year', 'seriesTitle']
                 df_merged = pd.merge(df, df_compare, on=merge_cols, suffixes=('_df1','_df2'))
-
                 df_merged = df_merged.sort_values(by="Year")
                 df_merged['Difference'] = df_merged['Value_df1'] - df_merged['Value_df2']
                 
@@ -172,12 +194,12 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(table_name=
                     
             # fig.update_layout(title="Grouped Stacked Bar Chart")
                 else:
-                    fig = plot_chart(df_merged, chart_types, color_map= color_map, y_col='Difference')
+                    fig = plot_chart(df_merged, chart_types, color_map= color_map, y_col='Difference',table_title=table_name)
             return fig
         else:
             if unit in dict_unit.keys():
                 df = unit_detect( unit, df)
-            return plot_chart(df, chart_types, color_map= color_map)
+            return plot_chart(df, chart_types, color_map= color_map, table_title=table_name)
     @app.callback(
         Output("download-dataframe-csv", "data"),
         Input("btn-download", "n_clicks"),

@@ -16,3 +16,4 @@ flask
 Flask-Session
 pyarrow
 fastparquet
+flask_sqlalchemy

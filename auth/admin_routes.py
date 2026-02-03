@@ -1,13 +1,11 @@
 from functools import wraps
-from flask import Blueprint, render_template, abort
+from flask import Blueprint, app, render_template, abort
 from flask_login import login_required, current_user
-from utils.data_loader import load_and_concat_uploaded_files, iter_uploaded_files_in_chunks
-from utils.dataframe_melter import melt_dataframe
-from utils.database_utils import write_scenario_to_database, execute_sql
-from flask import request, redirect, flash, url_for
-
+from flask import request, redirect, flash, url_for, Blueprint, render_template
+import pandas as pd
 from data_provider.sql_data import SQLDataProvider
-
+from auth.models import Table, db, Scenario, StudyScenario, Study, Series
+from utils.update_db_table import process_uploaded_csv
 
 admin_bp = Blueprint(
     "admin",
@@ -29,6 +27,7 @@ def admin_required(func):
 def admin_panel():
     return render_template("admin/panel.html")
 
+    
 @admin_bp.route("/upload", methods=["GET", "POST"])
 @login_required
 @admin_required
@@ -47,148 +46,201 @@ def upload_scenario():
         flash("Scenario name and files are required", "danger")
         return redirect(url_for("admin.upload_scenario"))
     
+    try:
+        for file in files:
+            df = pd.read_csv(file.stream)
 
-    """--------------------------------------------------------------------------------------------------"""
-    import gc
-    # initialize tracking set
-    seen_scenarios = set()
-    written = set()
-    skipped = set()
+        # Check if scenario exists
+        exists = db.session.query(Scenario).filter_by(name=scenario_name).first()
+        if exists:
+            flash(
+                f"Scenario '{scenario_name}' already exists. "
+                "Please delete it first before uploading a new one.",
+                "warning"
+            )
+            return redirect(url_for("admin.upload_scenario"))
 
-    for raw_chunk in iter_uploaded_files_in_chunks(files, chunksize=300):
-        
-        # melt the chunk as before
-        melted_chunk, _ = melt_dataframe(raw_chunk)
-
-        # write to DB using the new function
-        result = write_scenario_to_database(
-            melted_chunk,
-            seen_scenarios=seen_scenarios
+        process_uploaded_csv(
+            df=df,  
+            scenario_name=scenario_name,
+            engine=db.get_engine()
         )
 
-        # update flash tracking sets
-        written.update(result.get("written", []))
-        skipped.update(result.get("skipped", []))
+        flash(f"Scenario '{scenario_name}' uploaded successfully!", "success")
 
-        # 🔥 critical memory cleanup
-        del raw_chunk, melted_chunk
-        import gc
-        gc.collect()
+    except Exception as e:
+        flash(f"Upload failed: {e}", "danger")
 
-    # show flash messages after all chunks processed
-    if written:
-        flash(f"Added scenarios: {', '.join(written)}", "success")
-
-    if skipped:
-        flash(f"Skipped existing scenarios: {', '.join(skipped)}", "warning")
-
-
-    # df_all = load_and_concat_uploaded_files(files)
-    # df_prepared, _ = melt_dataframe(df_all)
-
-
-    # result = write_scenario_to_database(df_prepared)
-
-
-    # if result["written"]:
-    #     flash(
-    #         f"Added scenarios: {', '.join(result['written'])}",
-    #         "success"
-    #     )
-
-    # if result["skipped"]:
-    #     flash(
-    #         f"Skipped existing scenarios: {', '.join(result['skipped'])}",
-    #         "warning"
-    #     )
     return redirect(url_for("admin.upload_scenario"))
 
 
-@admin_bp.route("/remove_scenario", methods=["GET"])
+
+@admin_bp.route("/remove_scenario", methods=["GET", "POST"])
 @login_required
 @admin_required
 def remove_scenarios_page():
-    provider = SQLDataProvider()
-    scenarios = provider.get_scenarios()  
-    return render_template("remove_scenario.html", scenarios=scenarios)
+    if request.method == "GET":
+        provider = SQLDataProvider(db.session())
+        scenarios = provider.get_scenarios()  
+        return render_template("admin/remove_scenario.html", scenarios=scenarios)
 
-@admin_bp.route("/delete-scenarios", methods=["POST"])
-@login_required
-@admin_required
-def delete_scenarios():
-    scenarios = request.form.getlist("scenarios")  
 
-    if not scenarios:
-        flash("No scenarios selected", "warning")
+    if request.method == "POST":
+        scenarios = request.form.getlist("scenarios")  
+
+        if not scenarios:
+            flash("No scenarios selected", "warning")
+            return redirect(url_for("admin.remove_scenarios_page"))
+
+        # Delete each scenario from the database
+        deleted_scenarios = []
+        for scenario in scenarios:
+            try:
+                scenario_obj = (
+                    db.session.query(Scenario)
+                    .filter_by(name=scenario)
+                    .first()
+                )
+                if scenario_obj:
+                    db.session.delete(scenario_obj)
+                    db.session.commit()
+
+                
+                deleted_scenarios.append(scenario)
+            except Exception as e:
+                flash(f"Error deleting {scenario}: {str(e)}", "danger")
+
+        if deleted_scenarios:
+            flash(f"Deleted scenarios: {', '.join(deleted_scenarios)}", "success")
+
         return redirect(url_for("admin.remove_scenarios_page"))
-
-    # Delete each scenario from the database
-    deleted_scenarios = []
-    for scenario in scenarios:
-        try:
-            execute_sql(
-                'DELETE FROM observations WHERE "Scenario" = :scenario',
-                params={"scenario": scenario}
-            )
-            deleted_scenarios.append(scenario)
-        except Exception as e:
-            flash(f"Error deleting {scenario}: {str(e)}", "danger")
-
-    if deleted_scenarios:
-        flash(f"Deleted scenarios: {', '.join(deleted_scenarios)}", "success")
-
+    
     return redirect(url_for("admin.remove_scenarios_page"))
 
 
 
-
-from flask import current_app
-import os
-import json
-
-def load_json(file_path):
-    if os.path.exists(file_path):
-        with open(file_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
-
-def save_json(file_path, data):
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-
-@admin_bp.route("/dictionaries", methods=["GET", "POST"])
+@admin_bp.route("/remove_study", methods=["GET", "POST"])
 @login_required
 @admin_required
-def config_dictionary():
-    # paths to JSON config files
-    table_file = os.path.join(current_app.root_path, "config", "chartsTitles.json")
-    series_file = os.path.join(current_app.root_path, "config", "seriesTitles.json")
-
-    table_dict = load_json(table_file)
-    series_dict = load_json(series_file)
+def remove_studies_page():
+    if request.method == "GET":
+        provider = SQLDataProvider(db.session())
+        studies_recent = provider.get_recent_studies()
+        studies_recent = [study.name for study in studies_recent]
+        studies_archive = provider.get_archive_studies()
+        studies_archive = [study.name for study in studies_archive]
+        return render_template("admin/remove_study.html", studies_recent=studies_recent, studies_archive=studies_archive)
 
     if request.method == "POST":
-        dict_type = request.form.get("dict_type")  # "table" or "series"
-        key = request.form.get("key")
-        value = request.form.get("value")
+        studies = request.form.getlist("studies")  
 
-        if not dict_type or not key or not value:
-            flash("All fields are required", "danger")
-            return redirect(url_for("admin.config_dictionary"))
+        if not studies:
+            flash("No studies selected", "warning")
+            return redirect(url_for("admin.remove_studies_page"))
 
-        # update the selected dictionary
-        if dict_type == "table":
-            table_dict[key] = value
-            save_json(table_file, table_dict)
-        elif dict_type == "series":
-            series_dict[key] = value
-            save_json(series_file, series_dict)
+        # Delete each study from the database
+        deleted_studies = []
+        for study in studies:
+            try:
+                study_obj = (
+                    db.session.query(Study)
+                    .filter_by(name=study)
+                    .first()
+                )
+                if study_obj:
+                    db.session.delete(study_obj)
+                    db.session.commit()
 
-        flash(f"{dict_type.capitalize()} dictionary updated successfully!", "success")
-        return redirect(url_for("admin.config_dictionary"))
+                
+                deleted_studies.append(study)
+            except Exception as e:
+                flash(f"Error deleting {study}: {str(e)}", "danger")
+
+        if deleted_studies:
+            flash(f"Deleted studies: {', '.join(deleted_studies)}", "success")
+
+        return redirect(url_for("admin.remove_studies_page"))
+    
+    return redirect(url_for("admin.remove_studies_page"))
+
+
+
+@admin_bp.route("/studies", methods=["GET", "POST"])
+def admin_studies():
+    if request.method == "POST":
+        name = request.form.get("name")
+        status = request.form.get("status")
+        
+        if not name or not status:
+            flash("Please enter both name and status")
+            return redirect(url_for("admin.admin_studies"))
+        
+        new_study = Study(name=name, status=status)
+        db.session.add(new_study)
+        db.session.commit()
+        
+        flash("Study added successfully!")
+        return redirect(url_for("admin.admin_studies"))
+    
+    # GET request → list existing studies
+    studies = Study.query.order_by(Study.id.desc()).all()
+    return render_template("admin/add_study.html", studies=studies)
+
+@admin_bp.route("/study-scenarios", methods=["GET", "POST"])
+@login_required
+@admin_required
+def study_scenarios_page():
+    studies = Study.query.order_by(Study.name).all()
+    scenarios = Scenario.query.order_by(Scenario.name).all()
+
+    if request.method == "POST":
+        study_id = int(request.form.get("study_id"))
+        selected_scenario_ids = request.form.getlist("scenarios")  # list of scenario ids as str
+
+        StudyScenario.query.filter_by(study_id=study_id).delete()
+
+        for scenario_id in selected_scenario_ids:
+            db.session.add(StudyScenario(
+                study_id=study_id,
+                scenario_id=int(scenario_id)
+            ))
+
+        db.session.commit()
+        flash("Study-Scenario links updated successfully.", "success")
+        return redirect(url_for("admin.study_scenarios_page"))
 
     return render_template(
-        "admin/dictionaries.html",
-        table_dict=table_dict,
-        series_dict=series_dict
+        "admin/study_scenarios.html",
+        studies=studies,
+        scenarios=scenarios
     )
+
+@admin_bp.route("/edit_titles", methods=["GET", "POST"])
+@login_required
+@admin_required
+def edit_titles():
+    if request.method == "POST":
+        # process the submitted form
+        table_updates = request.form.getlist("table_title")
+        table_ids = request.form.getlist("table_id")
+        for tid, new_title in zip(table_ids, table_updates):
+            table = Table.query.get(int(tid))
+            if table:
+                table.title = new_title.strip() or table.name  # fallback to name if empty
+        db.session.commit()
+
+        series_updates = request.form.getlist("series_title")
+        series_ids = request.form.getlist("series_id")
+        for sid, new_title in zip(series_ids, series_updates):
+            series = Series.query.get(int(sid))
+            if series:
+                series.title = new_title.strip() or series.name
+        db.session.commit()
+
+        flash("Titles updated successfully!", "success")
+        return redirect("/admin/edit_titles")
+
+    # GET: show all tables and series
+    tables = Table.query.order_by(Table.name).all()
+    series = Series.query.order_by(Series.name).all()
+    return render_template("admin/edit_titles.html", tables=tables, series=series)

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Edit Titles{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-outline-secondary">
+        ← Back
+    </a>
+</div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+<div class="container mt-4">
+    <h2>Edit Table Titles</h2>
+    <form method="POST">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Table Name</th>
+                    <th>Table Title</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for table in tables %}
+                <tr>
+                    <td>{{ table.name }}</td>
+                    <td>
+                        <input type="hidden" name="table_id" value="{{ table.id }}">
+                        <input type="text" name="table_title" value="{{ table.title }}" class="form-control">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2 class="mt-4">Edit Series Titles</h2>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Series Name</th>
+                    <th>Series Title</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in series %}
+                <tr>
+                    <td>{{ s.name }}</td>
+                    <td>
+                        <input type="hidden" name="series_id" value="{{ s.id }}">
+                        <input type="text" name="series_title" value="{{ s.title }}" class="form-control">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <button type="submit" class="btn btn-primary mt-3">Save Changes</button>
+    </form>
+</div>
+{% endblock %}

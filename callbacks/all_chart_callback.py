@@ -1,35 +1,70 @@
 from dash import Input, Output, State, ctx, no_update
-from utils.get_data import get_categories, get_subcategories, get_table_id, get_subcategory_name
-from utils.get_data import get_filtered_df, get_user_df
-from utils.plot_chart import plot_chart
-from utils.unit_handler import unit_detect, dict_unit
-from dash import dcc
+# from utils.get_data import get_categories, get_subcategories, get_table_id, get_subcategory_name
+# from utils.get_data import get_filtered_df, get_user_df
+# from utils.plot_chart import plot_chart
+# from utils.unit_handler import unit_detect, dict_unit
+from dash import dcc, no_update
+from urllib.parse import urlencode
 from flask import has_request_context
 from config.constants import CATEGORY_DICT
 from data_provider.sql_data import SQLDataProvider
 options_list = ['kt', 'PJ'] 
+from auth.models import db
+from urllib.parse import urlparse, parse_qs
 
-def register_all_chart_callbacks(app, provider = SQLDataProvider(table_name="observations")):
+session = db.session
+def register_all_chart_callbacks(app, provider = SQLDataProvider(session=session)):
+    
+    @app.callback(
+        Output("url", "href"),
+        Input("url", "href"),
+        prevent_initial_call=True
+    )
+    def ensure_study_in_url(href):
+        if not href:
+            return no_update
+
+        parsed = urlparse(href)
+        query = parse_qs(parsed.query)
+
+        if "study_id" in query:
+            return no_update
+
+        latest = provider.get_latest_recent_study()
+        if not latest:
+            return no_update
+
+        new_query = urlencode({"study_id": latest.id})
+        return f"{parsed.path}?{new_query}"
+    
+
     @app.callback(
         Output("scenario-chart-dropdown", "options"),
         Output("scenario-chart-dropdown", "value"),
-        Input("tabs", "value")  # just a dummy input to trigger on load
+        Input("url", "href")
     )
-    def update_scenario_dropdown(tab_value):
-        # from utils.get_data import get_user_df
-        # df_user = get_user_df()
+    def update_scenario_dropdown(href):
+        if not href:
+            return [], None
 
-        # if df_user is not None:
-        #     scenarios = sorted(df_user["Scenario"].unique())
-        # else:
-        #     from utils.database_utils import read_sql
-        #     df = read_sql('SELECT DISTINCT "Scenario" FROM observations')
-        #     scenarios = sorted(df["Scenario"].dropna().tolist())
-        scenarios = sorted(provider.get_scenarios())
-        value = scenarios[0] if scenarios else None
-        options = [{"label": s, "value": s} for s in scenarios]
+        query = parse_qs(urlparse(href).query)
+        study_id = query.get("study_id", [None])[0]
+
+        if not study_id:
+            return [], None
+
+        scenarios = provider.get_scenarios_for_study(int(study_id))
+
+        options = [{"label": s.name, "value": s.name} for s in scenarios]
+        value = options[0]["value"] if options else None
 
         return options, value
+        
+        # scenarios = sorted(provider.get_scenarios())
+        # value = scenarios[0] if scenarios else None
+        # options = [{"label": s, "value": s} for s in scenarios]
+
+        # return options, value
     @app.callback(
         Output('category-dropdown', 'options'),
         Output('category-dropdown', 'value'),
@@ -42,8 +77,8 @@ def register_all_chart_callbacks(app, provider = SQLDataProvider(table_name="obs
         # # Logic to get categories
         # categories = get_categories(df_override=df_override)
         categories = provider.get_categories()
-        if 'sys' in categories:
-            value = 'sys'
+        if 'SYS' in categories:
+            value = 'SYS'
         else:
             value = categories[0] if categories else None
         return [{"label": CATEGORY_DICT.get(cat, cat), "value": cat} for cat in categories], value
@@ -60,7 +95,7 @@ def register_all_chart_callbacks(app, provider = SQLDataProvider(table_name="obs
         # # Logic to get subcategories based on selected category
         # subcategories = get_subcategories(category, df_override=df_override)
         subcategories = provider.get_subcategories(category)
-        if category == 'sys' and 'Domestic CO₂ Emissions by Sector' in subcategories:
+        if category == 'SYS' and 'Domestic CO₂ Emissions by Sector' in subcategories:
             value = 'Domestic CO₂ Emissions by Sector'
         else:
             value = subcategories[0] if subcategories else None
@@ -82,7 +117,8 @@ def register_all_chart_callbacks(app, provider = SQLDataProvider(table_name="obs
         # table_id = get_table_id(table_name,category, df_override=df_override)
         # df = get_filtered_df(table_id, scenario, year_range, df_override=df_override)
         table_id = provider.get_table_id(table_name, category)
-        df_unit = provider.get_labels(table_id, scenario, year_range)
+        # df_unit = provider.get_labels(table_id, scenario, year_range)
+        df_unit = provider.get_labels(table_id)
         options =[]
         value = None
         # label = df['label'].iloc[0]

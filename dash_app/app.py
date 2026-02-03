@@ -1,10 +1,7 @@
-
-
-
-
 import dash
 from dash import dcc, html
 
+from flask import render_template, request
 import plotly.express as px
 import dash_bootstrap_components as dbc
 from callbacks.overview_callback import register_overview_callbacks
@@ -17,7 +14,9 @@ from callbacks.sankey_callback import register_sankey_callback
 
 from data_provider.sql_data import SQLDataProvider
 
-# from components.navbar import navbar
+from auth.models import db
+
+session = db.session
 
 def init_dash(server):
     app = dash.Dash(
@@ -33,6 +32,7 @@ def init_dash(server):
     # all_data_melted = get_data_melted()
     app.title = "Energy Scenarios Dashboard"
     main_layout =  html.Div([
+        dcc.Location(id = 'url', refresh = False),
         html.Div([
             html.Img(
                 src="assets/EPMG LOGO.png",
@@ -70,14 +70,14 @@ def init_dash(server):
         ])
         
     ])
-
+    
     app.layout = html.Div([
             main_layout
         ])
-    provider = SQLDataProvider(table_name="observations")
+    provider = SQLDataProvider(session=session)
     register_tab_content_callbacks(app)
 
-    register_overview_callbacks(app) 
+    register_overview_callbacks(app, provider=provider) 
 
     register_all_chart_callbacks(app,provider=provider)
     register_compare_chart_callbacks(app,provider=provider)

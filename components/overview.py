@@ -1,34 +1,38 @@
 import dash_bootstrap_components as dbc
 from dash import html, dcc
+
+from data_provider.sql_data import SQLDataProvider
 # from utils.dataframe_melter import get_scenarios
-from utils.get_data import get_scenarios
+# from utils.get_data import get_scenarios
 # scenarios = get_scenarios()
 DEFAULT_YEAR = 2024
 DEFAULT_YEAR_END = 2050
 
 
-def get_scenario_dropdown():
-    try:
-        scenarios = get_scenarios()
-        if not scenarios:
-            return dcc.Dropdown(
-                id='scenario-dropdown',
-                options=[],
-                placeholder="No scenarios found",
-                disabled=True
-            )
-        return dcc.Dropdown(
-            id='scenario-dropdown',
-            options=[{'label': s, 'value': s} for s in scenarios],
-            value=scenarios[0],
-        )
-    except Exception as e:
-        return dcc.Dropdown(
-            id='scenario-dropdown',
-            options=[],
-            placeholder="Error loading scenarios",
-            disabled=True
-        )
+# def get_scenario_dropdown():
+#     try:
+#         # scenarios = get_scenarios()
+#         scenarios = SQLDataProvider(table_name="scenarios").get_scenarios()
+#         if not scenarios:
+#             return dcc.Dropdown(
+#                 id='scenario-dropdown',
+#                 options=[],
+#                 placeholder="No scenarios found",
+#                 disabled=True
+#             )
+#         return dcc.Dropdown(
+#             id='scenario-dropdown',
+#             options=[{'label': s, 'value': s} for s in scenarios],
+#             value=scenarios[0],
+#         )
+#     except Exception as e:
+#         return dcc.Dropdown(
+#             id='scenario-dropdown',
+#             options=[],
+#             placeholder="Error loading scenarios",
+#             disabled=True
+#         )
+from config.constants import START_YEAR, END_YEAR
 overview_layout = dbc.Container([
     
     dbc.Row([
@@ -43,7 +47,8 @@ overview_layout = dbc.Container([
     
         dbc.Col([
                 html.Label("Scenario", className="control-label"),
-                get_scenario_dropdown()
+                dcc.Dropdown(id='scenario-dropdown')
+                # get_scenario_dropdown()
                 # dcc.Dropdown(
                 #     id='scenario-dropdown',
                 #     options=[{'label': s, 'value': s} for s in scenarios],
@@ -56,16 +61,16 @@ overview_layout = dbc.Container([
                 html.Label("Start year", className="control-label"),
                 dcc.Dropdown(
                     id='start-year-dropdown',
-                    options=[{'label': str(year), 'value': year} for year in range(2018, 2051)],
-                    value=DEFAULT_YEAR
+                    options=[{'label': str(year), 'value': year} for year in range(START_YEAR, END_YEAR + 1)],
+                    value=START_YEAR
                 )
         ], width =1),
         dbc.Col([
                 html.Label("End year", className="control-label"),
                 dcc.Dropdown(
                     id='end-year-dropdown',
-                    options=[{'label': str(year), 'value': year} for year in range(2018, 2051)],
-                    value=DEFAULT_YEAR_END
+                    options=[{'label': str(year), 'value': year} for year in range(START_YEAR, END_YEAR + 1)],
+                    value=END_YEAR
                 )
         ], width =1),
         dbc.Col([

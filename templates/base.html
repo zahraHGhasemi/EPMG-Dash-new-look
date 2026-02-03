@@ -20,30 +20,35 @@
             <li class="nav-item">
                 <a class="nav-link" href="/">Home</a>
             </li>
-<!-- 
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
+                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                     Recent Studies
                 </a>
                 <ul class="dropdown-menu">
-                    <li>Study 1</li>
-                    <li>Study 2</li>
-                    <li><a class="dropdown-item" href="/studies/recent?study=1">Study 1</a></li>
-                    <li><a class="dropdown-item" href="/studies/recent?study=2">Study 2</a></li> 
+                    {% for study in recent_studies %}
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('dash_home') }}?study_id={{ study.id }}">
+                            {{ study.name }}
+                        </a>
+                    </li>
+                    {% endfor %}
                 </ul>
-            </li>
+                </li>
 
-            <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
+                <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                     Archive
                 </a>
                 <ul class="dropdown-menu">
-                    <li>Study 3</li>
-                    <li>Study 4</li>
-                    <li><a class="dropdown-item" href="/studies/archive?study=3">Study 3</a></li>
-                    <li><a class="dropdown-item" href="/studies/archive?study=4">Study 4</a></li>
+                    {% for study in archive_studies %}
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('dash_home') }}?study_id={{ study.id }}">
+                            {{ study.name }}
+                        </a>
+                    </li>
+                    {% endfor %}
                 </ul>
-            </li> -->
+            </li>
         </ul>
 
         <!-- RIGHT -->

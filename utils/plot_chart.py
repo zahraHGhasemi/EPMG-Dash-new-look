@@ -1,13 +1,13 @@
 import plotly.express as px
 
-def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = "Value", facet_col= None, category_orders = None, barmode = 'stack',color_map =[]):
+def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = "Value", facet_col= None, category_orders = None, barmode = 'stack',color_map =[], table_title ="Selected Chart"):
     color_col = 'seriesTitle' if all_data_melted_filtered['seriesTitle'].notna().any() else 'seriesName'
-    if 'tableTitle' in all_data_melted_filtered.columns:
-        table_title = all_data_melted_filtered['tableTitle'].unique()[0] 
-        title_col = table_title if  table_title != 'nan' else all_data_melted_filtered['tableName'].unique()[0]
-    else:
-        title_col = "Selected Chart"
-
+    # if 'tableTitle' in all_data_melted_filtered.columns:
+    #     table_title = all_data_melted_filtered['tableTitle'].unique()[0] 
+    #     title_col = table_title if  table_title != 'nan' else all_data_melted_filtered['tableName'].unique()[0]
+    # else:
+    #     title_col = "Selected Chart"
+    title_col = table_title
     all_data_melted_filtered = all_data_melted_filtered.sort_values(by="Year")
 
     if facet_col is None and 'source' in all_data_melted_filtered.columns:
@@ -29,11 +29,10 @@ def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = 
             facet_col = facet_col,
             category_orders=category_orders
         )
+        print(all_data_melted_filtered.columns, "label----")
         fig.update_layout(xaxis_title= x_col, yaxis_title= all_data_melted_filtered['label'].unique()[0] if not all_data_melted_filtered.empty else 'Value',
                           legend = dict(title_text='')) # Updated yaxis_title
         
-
-
         return fig
     elif type == 'line':
         fig = px.line(
@@ -108,7 +107,7 @@ def plot_bar_chart(df, year, title):
 
 from plotly.subplots import make_subplots
 
-def plot_two_pie_charts_px(df1, year1, df2, year2, title):
+def plot_two_pie_charts_px(df1, year1, df2, year2, title,label='Value'):
     # Create the subplots layout
     fig = make_subplots(
         rows=1, cols=2,
@@ -140,8 +139,8 @@ def plot_two_pie_charts_px(df1, year1, df2, year2, title):
     # Add center annotations for totals
     total1 = int(df1['Value'].sum())
     total2 = int(df2['Value'].sum())
-    unit1 = df1['label'].unique()[0] if not df1.empty else ''
-    unit2 = df2['label'].unique()[0] if not df2.empty else ''
+    unit1 = label
+    unit2 = label
 
     fig.add_annotation(text=f"{total1} {unit1}", x=0.20, y=0.5,
                        font=dict(size=14, color='black'), showarrow=False)
@@ -168,7 +167,7 @@ def plot_two_pie_charts_px(df1, year1, df2, year2, title):
 
     return fig
 
-def plot_two_bar_charts_px(df1, year1, df2, year2, title):
+def plot_two_bar_charts_px(df1, year1, df2, year2, title, label):
     df1 = df1.copy()
     df2 = df2.copy()
     df1["Year"] = year1
@@ -177,7 +176,7 @@ def plot_two_bar_charts_px(df1, year1, df2, year2, title):
     combined_df = px.data.tips()  # placeholder
     combined_df = px.data.tips()  # delete these lines in actual use
     combined_df = df1._append(df2, ignore_index=True)
-
+    print(combined_df, "combined df---")
     # Optional: compute dynamic font size scaling (if you still want it)
     combined_df["font_size"] = [8 + (v / max(combined_df["Value"])) * 10 for v in combined_df["Value"]]
 
@@ -203,7 +202,7 @@ def plot_two_bar_charts_px(df1, year1, df2, year2, title):
     fig.update_layout(
         barmode="stack",
         xaxis_title="Year",
-        yaxis_title=combined_df['label'].unique()[0] if not combined_df.empty else 'Value',
+        yaxis_title=label,
         bargap=0.5,  # spacing between bars, bigger = thinner
         title=dict(
             text=title,

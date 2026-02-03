@@ -1,10 +1,10 @@
 from dash import html
 from dash import dcc
-from utils.plot_chart import plot_chart
+# from utils.plot_chart import plot_chart
 import dash_bootstrap_components as dbc
 # from utils.dataframe_melter import get_scenarios
 from components.all_charts import options_layout
-from utils.get_data import get_scenarios,get_user_df
+# from utils.get_data import get_scenarios,get_user_df
 from data_provider.dataframe_data import DataFrameProvider
 from data_provider.sql_data import SQLDataProvider
 # df_override = get_user_df()  # Replace with actual DataFrame if needed

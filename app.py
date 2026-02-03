@@ -116,20 +116,32 @@
 #     app.run(debug=True)
 
 
-from flask import Flask, render_template
+from flask import Flask, render_template, url_for
 from flask_login import LoginManager
-from auth.models import User
-from utils.database_utils import SessionLocal
+from auth.models import db, User
+# from utils.database_utils import SessionLocal
 from auth.auth_routes import auth_bp
 from dash_app.app import init_dash
 from auth.admin_routes import admin_bp
 from auth.user_routes import user_bp
 from flask_session import Session
 from dash_app.user_dash import init_user_dash
+from flask import redirect, request
+from data_provider.sql_data import SQLDataProvider
 
+import os
+from flask_sqlalchemy import SQLAlchemy
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = "change-this"
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DB_URL")
+
+db.init_app(app)
+
+with app.app_context():
+    db.create_all()
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
@@ -143,21 +155,46 @@ app.config["SESSION_USE_SIGNER"] = True
 
 Session(app)
 
-login_manager = LoginManager(app)
+login_manager = LoginManager()
 login_manager.login_view = "auth.login"
+login_manager.init_app(app)
 
 @login_manager.user_loader
 def load_user(user_id):
-    db = SessionLocal()
-    return db.query(User).get(int(user_id))
+    return db.session.get(User, int(user_id))
+# @login_manager.user_loader
+# def load_user(user_id):
+#     db = SessionLocal()
+#     return db.query(User).get(int(user_id))
 
+@app.context_processor
+def inject_studies():
+    provider = SQLDataProvider(session=db.session)
 
+    return {
+        "recent_studies": provider.get_recent_studies(),
+        "archive_studies": provider.get_archive_studies(),
+    }
 @app.route("/")
 def home():
+    return redirect(url_for("dash_home"))
+@app.route("/dashboard")
+def dash_home():
+    study_id = request.args.get("study_id")
+    provider = SQLDataProvider(session=db.session)
+
+    if not study_id:
+        latest_study = provider.get_latest_recent_study()
+        if latest_study:
+            # redirect to /dash?study_id=<latest>
+            return redirect(url_for("dash_home", study_id=latest_study.id))
+        else:
+            return "No recent study available", 404
+
     return render_template("home.html")
 
 init_dash(app)
 init_user_dash(app)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True) 

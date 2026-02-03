@@ -16,7 +16,7 @@
                 <div class="card-body">
                     <h5 class="card-title">📤 Upload Scenario</h5>
                     <p class="card-text">
-                        Upload new scenario datasets into the system.
+                        Upload new scenario datasets into the database
                     </p>
                     <a href="/admin/upload" class="btn btn-primary">
                         Go
@@ -24,29 +24,44 @@
                 </div>
             </div>
         </div>
-
-        <!-- Update Dictionaries -->
+        
+        <!-- Add study -->
         <div class="col-md-4">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
-                    <h5 class="card-title">🏷 Update Dictionaries</h5>
+                    <h5 class="card-title">📁 Add study</h5>
                     <p class="card-text">
-                        Manage table names and series labels.
+                        Add a new study to the Recent studies or Archive
                     </p>
-                    <a href="/admin/dictionaries" class="btn btn-primary">
+                    <a href="/admin/studies" class="btn btn-primary">
                         Go
                     </a>
                 </div>
             </div>
         </div>
+        <!-- Update scenarios in studies -->
 
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">🔗 Update scenarios in studies</h5>
+                    <p class="card-text">
+                        Update the scenarios linked to each study
+                    </p>
+                    <a href="/admin/study-scenarios" class="btn btn-primary">
+                        Go
+                    </a>
+                </div>
+            </div>
+        </div>
+        
         <!-- Delete Scenario -->
         <div class="col-md-4">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">🗑 Delete Scenario</h5>
                     <p class="card-text">
-                        Remove scenarios from the system.
+                        Remove scenarios from the database
                     </p>
                     <a href="/admin/remove_scenario" class="btn btn-danger">
                         Go
@@ -54,7 +69,31 @@
                 </div>
             </div>
         </div>
-
+        <!-- Delete studies -->
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">❌ Delete studies</h5>
+                    <p class="card-text">
+                        Remove studies from Recent studies or Archive
+                    </p>
+                    <a href="/admin/remove_study" class="btn btn-danger">
+                        Go
+                    </a>
+                </div>
+            </div>
+        </div>
+        <!-- Edit Table and Series Metadata -->
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">📝 Edit Table and Series titles</h5>
+                    <p class="card-text">
+                        Edit tables/series titles
+                    </p>
+                    <a href="/admin/edit_titles" class="btn btn-primary">
+                        Go
+                    </a>    
     </div>
 </div>
 

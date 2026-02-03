@@ -1,0 +1,101 @@
+
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-outline-secondary">
+        ← Back
+    </a>
+</div>
+<div class="container mt-4">
+
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+
+            <!-- Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+
+                    <h3 class="card-title mb-4">Add New Study</h3>
+
+                    <!-- Flash messages -->
+                    {% with messages = get_flashed_messages() %}
+                        {% if messages %}
+                            <div class="alert alert-success">
+                                <ul class="mb-0">
+                                    {% for message in messages %}
+                                        <li>{{ message }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+
+                    <!-- Form -->
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Study Name</label>
+                            <input
+                                type="text"
+                                id="name"
+                                name="name"
+                                class="form-control"
+                                required
+                            >
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="status" class="form-label">Status</label>
+                            <select
+                                id="status"
+                                name="status"
+                                class="form-select"
+                            >
+                                <option value="recent">Recent</option>
+                                <option value="archive">Archive</option>
+                            </select>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                Add Study
+                            </button>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+
+            <!-- Existing studies -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+
+                    <h5 class="card-title mb-3">Existing Studies</h5>
+
+                    {% if studies %}
+                        <ul class="list-group list-group-flush">
+                            {% for study in studies %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>{{ study.name }}</span>
+                                    <span class="badge bg-secondary text-uppercase">
+                                        {{ study.status }}
+                                    </span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted mb-0">No studies yet.</p>
+                    {% endif %}
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+
+{% endblock %}
+

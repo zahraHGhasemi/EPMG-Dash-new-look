@@ -33,34 +33,100 @@
 #     logout_user()
 #     return redirect("/")
 
-from flask import Blueprint, render_template, request, redirect, current_app
+
+
+
+
+
+
+
+
+# from flask import Blueprint, render_template, request, redirect, current_app
+# from flask_login import login_user, logout_user, login_required
+# # from database import SessionLocal
+# # from utils.database_utils import SessionLocal
+# from auth.models import User
+# from werkzeug.security import check_password_hash
+# from flask import session
+# import os
+
+# auth_bp = Blueprint("auth", __name__)
+
+# @auth_bp.route("/login", methods=["GET", "POST"])
+# def login():
+#     if request.method == "POST":
+#         db = SessionLocal()
+#         user = db.query(User).filter_by(
+#             username=request.form["username"].strip()
+#         ).first()
+
+#         if user and check_password_hash(user.password_hash, request.form["password"]):
+#             login_user(user)
+#             return redirect("/")
+#     return render_template("login.html")
+
+
+# @auth_bp.route("/logout")
+# @login_required
+# def logout():
+#     scenario = session.pop("user_scenario", None)
+
+#     if scenario:
+#         path = os.path.join(
+#             current_app.instance_path,
+#             "user_uploads",
+#             f"{scenario['id']}.parquet"
+#         )
+#         if os.path.exists(path):
+#             os.remove(path)
+
+#     session.clear()
+#     logout_user()
+#     return redirect("/")
+
+
+
+
+
+from flask import Blueprint, flash, render_template, request, redirect, current_app
 from flask_login import login_user, logout_user, login_required
-# from database import SessionLocal
-from utils.database_utils import SessionLocal
-from auth.models import User
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from flask import session
 import os
 
+from auth.models import db, User
+
 auth_bp = Blueprint("auth", __name__)
+
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        db = SessionLocal()
-        user = db.query(User).filter_by(
-            username=request.form["username"].strip()
-        ).first()
+        username = request.form["username"].strip()
+        password = request.form["password"]
 
-        if user and check_password_hash(user.password_hash, request.form["password"]):
+        user = (
+            db.session
+            .query(User)
+            .filter_by(username=username)
+            .first()
+        )
+
+        if user and check_password_hash(user.password_hash, password):
             login_user(user)
             return redirect("/")
+
+        # optional: flash message later
+        if not user or not check_password_hash(user.password_hash, password):
+            flash("Invalid username or password", "warning")  
+            return redirect("/login")
     return render_template("login.html")
 
 
 @auth_bp.route("/logout")
 @login_required
 def logout():
+    # Remove user-uploaded temporary scenario (if exists)
     scenario = session.pop("user_scenario", None)
 
     if scenario:
@@ -75,3 +141,33 @@ def logout():
     session.clear()
     logout_user()
     return redirect("/")
+
+@auth_bp.route("/signup", methods=["GET", "POST"])
+def signup():
+    username = request.form.get("username").strip()
+    password = request.form.get("password").strip()
+    
+    if User.query.filter_by(username=username).first():
+        flash("Username already exists.", "warning")  # 🟡
+        return redirect("/login")
+    
+    if not username or not password:
+        flash("Username and password are required.", "danger")
+        return redirect("/login")
+
+    # Check if username exists
+    if User.query.filter_by(username=username).first():
+        flash("Username already exists. Please choose another.", "warning")
+        return redirect("/login")
+
+    # Create new user with 'user' role only
+    new_user = User(
+        username=username,
+        password_hash=generate_password_hash(password),
+        role="user"
+    )
+    db.session.add(new_user)
+    db.session.commit()
+
+    flash("Account created successfully! You can now log in.", "success")
+    return redirect("/login")

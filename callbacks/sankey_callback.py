@@ -1,24 +1,31 @@
 
 from dash import Input, Output, State, ctx, no_update
-from utils.get_data import get_categories, get_subcategories, get_table_id, get_subcategory_name
-from utils.get_data import get_filtered_df
-from utils.plot_chart import plot_chart
-from utils.unit_handler import unit_detect, dict_unit
+# from utils.get_data import get_categories, get_subcategories, get_table_id, get_subcategory_name
+# from utils.get_data import get_filtered_df
+# from utils.plot_chart import plot_chart
+# from utils.unit_handler import unit_detect, dict_unit
 from dash import dcc
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import colorsys
 from data_provider.sql_data import SQLDataProvider
+from urllib.parse import urlparse, parse_qs
+from auth.models import db
 
+session = db.session
 
-
-def prepare_sankey_data_energy_source_to_sector(scenario, year,provider = SQLDataProvider(table_name="observations")):
-    df_agr = provider.get_filtered_df("AGR_FEC", scenario, [year,year])
-    df_ind = provider.get_filtered_df("IND_FEC", scenario, [year,year])
-    df_srv = provider.get_filtered_df("SRV_FEC", scenario, [year,year])
-    df_rsd = provider.get_filtered_df("RSD_FEC", scenario, [year,year])
-    df_tra = provider.get_filtered_df("TRA_FEC", scenario, [year,year])
+def prepare_sankey_data_energy_source_to_sector(scenario, year,provider = SQLDataProvider(session=session)):
+    table_id_agr = provider.get_table_id_by_name("AGR_FEC")
+    table_id_ind = provider.get_table_id_by_name("IND_FEC")
+    table_id_srv = provider.get_table_id_by_name("SRV_FEC")
+    table_id_rsd = provider.get_table_id_by_name("RSD_FEC")
+    table_id_tra = provider.get_table_id_by_name("TRA_FEC")
+    df_agr = provider.get_filtered_df(table_id_agr, scenario, [year,year])
+    df_ind = provider.get_filtered_df(table_id_ind, scenario, [year,year])
+    df_srv = provider.get_filtered_df(table_id_srv, scenario, [year,year])
+    df_rsd = provider.get_filtered_df(table_id_rsd, scenario, [year,year])
+    df_tra = provider.get_filtered_df(table_id_tra, scenario, [year,year])
 
     df_agr_filtered = df_agr[['seriesTitle', 'Value']].copy()
     df_agr_filtered['target'] = 'Agriculture'
@@ -49,11 +56,18 @@ def handle_negative_elec(df_filtered):
     
     return df_filtered
 
-def prepare_sankey_data_SEAI(scenario, year, provider = SQLDataProvider(table_name="observations")):
-    df_SYS_TPED = provider.get_filtered_df('SYS_TPED', scenario, [year, year])
-    df_FEC_Sector = provider.get_filtered_df("SYS_FEC_Sector", scenario, [year,year])
-    df_renewable = provider.get_filtered_df('PWR_Gen-ELCC', scenario, [year,year])
-    
+def prepare_sankey_data_SEAI(scenario, year, provider = SQLDataProvider(session=session)):
+    table_id_SYS_TPED = provider.get_table_id_by_name('SYS_TPED')
+    table_id_FEC_Sector = provider.get_table_id_by_name("SYS_FEC_Sector")
+    table_id_renewable = provider.get_table_id_by_name('PWR_Gen-ELCC')
+    print(table_id_SYS_TPED, table_id_FEC_Sector, table_id_renewable, 'table_ids************')
+    df_SYS_TPED = provider.get_filtered_df(table_id_SYS_TPED, scenario, [year, year])
+    df_FEC_Sector = provider.get_filtered_df(table_id_FEC_Sector, scenario, [year,year])
+    df_renewable = provider.get_filtered_df(table_id_renewable, scenario, [year,year])
+    print(df_SYS_TPED.head(), 'df_SYS_TPED************')
+    print(df_FEC_Sector.head(), 'df_FEC_Sector************')
+    print(df_renewable.head(), 'df_renewable************')
+
     df_filtered = df_SYS_TPED[['seriesTitle','Value']]
     df_filtered.loc[len(df_filtered)] = ["Wind offshore", 0]
     df_filtered.loc[len(df_filtered)] = ["Wind onshore", 0]
@@ -176,16 +190,26 @@ def draw_sankey(df_all, year, nodes, node_indices, node_colors):
     )
     return fig
 
-def register_sankey_callback(app, provider = SQLDataProvider(table_name="observations")):
+def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
     @app.callback(
         Output('scenario-sankey-dropdown', 'options'),
         Output('scenario-sankey-dropdown', 'value'),
-        Input('tabs', 'value')
+        Input("url", "href")
     )
-    def update_sankey_scenario_options(tab_value):
-        scenarios = sorted(provider.get_scenarios())
-        value = scenarios[0] if len(scenarios) > 0 else None
-        options = [{"label": s, "value": s} for s in scenarios]
+    def update_sankey_scenario_options(href):
+        if not href:
+            return [], None
+
+        query = parse_qs(urlparse(href).query)
+        study_id = query.get("study_id", [None])[0]
+
+        if not study_id:
+            return [], None
+
+        scenarios = provider.get_scenarios_for_study(int(study_id))
+
+        options = [{"label": s.name, "value": s.name} for s in scenarios]
+        value = options[0]["value"] if options else None
 
         return options, value
     @app.callback(

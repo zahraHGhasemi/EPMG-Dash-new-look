@@ -1,9 +1,9 @@
 from dash import html
 from dash import dcc
-from utils.plot_chart import plot_chart
+# from utils.plot_chart import plot_chart
 import dash_bootstrap_components as dbc
 # from utils.dataframe_melter import get_scenarios
-from utils.get_data import get_scenarios, get_user_df
+# from utils.get_data import get_scenarios, get_user_df
 from config.constants import START_YEAR, END_YEAR, DEFAULT_START_YEAR, DEFAULT_END_YEAR
 # df_override = get_user_df()  # Replace with actual DataFrame if needed
 # scenarios = get_scenarios(df_override=df_override)
