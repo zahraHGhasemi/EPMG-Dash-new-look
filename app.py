@@ -137,7 +137,8 @@ load_dotenv()
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DB_URL")
-
+print("Environment DB_URL:", os.getenv("DB_URL"))
+print("Database URL:", app.config["SQLALCHEMY_DATABASE_URI"])
 db.init_app(app)
 
 with app.app_context():
