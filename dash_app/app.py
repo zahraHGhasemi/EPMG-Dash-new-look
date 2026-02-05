@@ -22,7 +22,7 @@ def init_dash(server):
     app = dash.Dash(
         __name__,
         server=server,  # ✅ IMPORTANT: attach Dash to existing Flask server
-        external_stylesheets=[dbc.themes.BOOTSTRAP],
+        external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP],
         suppress_callback_exceptions=True,
         url_base_pathname="/dash/"
     )

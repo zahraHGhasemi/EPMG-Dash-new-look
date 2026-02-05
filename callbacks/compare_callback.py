@@ -220,7 +220,7 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
         table_id = provider.get_table_id(table_name, category)
         df = provider.get_filtered_df(table_id, scenario, year_range)
 
-        return dcc.send_data_frame(df.to_csv, f"chart_data_{year_range}.csv", index=False)
+        return dcc.send_data_frame(df.to_csv, f"{table_name}_{scenario}_{year_range[0]}-{year_range[1]}.csv", index=False)
             
 
 

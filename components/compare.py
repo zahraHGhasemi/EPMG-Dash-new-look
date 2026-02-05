@@ -61,7 +61,7 @@ def compare_charts_layout():
                 children = [
                     dbc.AccordionItem([
                         html.Div([], id = 'color-accordion' )
-                    ],title = 'Color')
+                    ],title = 'colour')
                 ],
                 start_collapsed=True,
                 always_open=False

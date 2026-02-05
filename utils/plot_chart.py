@@ -1,5 +1,5 @@
 import plotly.express as px
-
+import pandas as pd
 def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = "Value", facet_col= None, category_orders = None, barmode = 'stack',color_map =[], table_title ="Selected Chart"):
     color_col = 'seriesTitle' if all_data_melted_filtered['seriesTitle'].notna().any() else 'seriesName'
     # if 'tableTitle' in all_data_melted_filtered.columns:
@@ -161,7 +161,9 @@ def plot_two_pie_charts_px(df1, year1, df2, year2, title,label='Value'):
             x=0.5,
             xanchor='center',
             y=-0.1,
-            yanchor='top'
+            yanchor='top',
+            itemclick=False,        # disables single-click toggling
+            itemdoubleclick=False
         )
     )
 
@@ -172,11 +174,11 @@ def plot_two_bar_charts_px(df1, year1, df2, year2, title, label):
     df2 = df2.copy()
     df1["Year"] = year1
     df2["Year"] = year2
-    df = px.data.tips()  # remove any old reference, just here for context
-    combined_df = px.data.tips()  # placeholder
-    combined_df = px.data.tips()  # delete these lines in actual use
-    combined_df = df1._append(df2, ignore_index=True)
-    print(combined_df, "combined df---")
+    # df = px.data.tips()  # remove any old reference, just here for context
+    # combined_df = px.data.tips()  # placeholder
+    # combined_df = px.data.tips()  # delete these lines in actual use
+    combined_df = pd.concat([df1, df2], ignore_index=True)
+    # print(combined_df, "combined df---")
     # Optional: compute dynamic font size scaling (if you still want it)
     combined_df["font_size"] = [8 + (v / max(combined_df["Value"])) * 10 for v in combined_df["Value"]]
 
@@ -217,7 +219,9 @@ def plot_two_bar_charts_px(df1, year1, df2, year2, title, label):
             xanchor='center',
             y=-0.2,
             yanchor='top',
-            title_text=''
+            title_text='',
+            itemclick=False,        # disables single-click toggling
+            itemdoubleclick=False
         )
     )
 
