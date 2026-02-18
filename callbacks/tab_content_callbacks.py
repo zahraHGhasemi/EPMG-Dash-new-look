@@ -1,10 +1,42 @@
-from dash import Input, Output
+from urllib.parse import parse_qs, urlparse, urlencode
+from dash import Input, Output, State
 from components.overview import overview_layout
 from components.all_charts import all_charts_layout
 from components.compare import compare_charts_layout
 from components.sankey import sankey_layout
 from components.about import about_layout
+
+
 def register_tab_content_callbacks(app):
+
+    @app.callback(
+        Output("tabs", "value"),
+        Input("url", "href"),
+    )
+    def set_tab_from_url(href):
+        if not href:
+            return "about"
+
+        qs = parse_qs(urlparse(href).query)
+        return qs.get("tab", ["about"])[0]
+    
+    @app.callback(
+        Output("url", "search"),
+        Input("tabs", "value"),
+        State("url", "href"),
+        prevent_initial_call=True
+    )
+    def update_url_on_tab_click(tab_value, href):
+        # Keep study_id, add/update tab
+        if not href:
+            return "?" + urlencode({"study_id": "1", "tab": tab_value})
+
+        parsed = urlparse(href)
+        qs = parse_qs(parsed.query)
+
+        study_id = qs.get("study_id", ["1"])[0]
+        return "?" + urlencode({"study_id": study_id, "tab": tab_value})
+    
     @app.callback(
         Output('tab-content', 'children'),
         Input('tabs', 'value'),
@@ -14,7 +46,7 @@ def register_tab_content_callbacks(app):
        
         if tab == 'overview':
             return overview_layout
-        elif tab == 'compare-scenarios':
+        elif tab == 'charts':
             return compare_charts_layout()
         elif tab == 'about':
             return about_layout()

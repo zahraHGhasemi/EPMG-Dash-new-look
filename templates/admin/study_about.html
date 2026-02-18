@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Add or edit about tab content for selected study{% endblock %}
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-outline-secondary">
+        ← Back
+    </a>
+</div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="container" style="max-width: 1100px;">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h2 class="mb-0">Add / Update Study About</h2>
+  </div>
+
+
+  <!-- Study selector (GET) -->
+  <form method="GET" action="{{ url_for('admin.study_about') }}" class="mb-3">
+    <label class="form-label">Choose study</label>
+    <select name="study_id" class="form-select" onchange="this.form.submit()">
+      <option value="" {% if not selected_study_id %}selected{% endif %} disabled>Choose a study…</option>
+      {% for s in studies %}
+        <option value="{{ s.id }}" {% if selected_study_id == s.id %}selected{% endif %}>
+          {{ s.name }}
+        </option>
+      {% endfor %}
+    </select>
+    <noscript><button class="btn btn-secondary mt-2">Load</button></noscript>
+  </form>
+
+  <!-- Editor (POST) -->
+  <form method="POST" action="{{ url_for('admin.study_about') }}">
+    <input type="hidden" name="study_id" value="{{ selected_study_id or '' }}"/>
+    
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+    <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <textarea
+      id="about_md"
+      name="about_md"
+      class="form-control"
+      rows="18"
+      placeholder="Write the About section here… Markdown supported."
+      {% if not selected_study_id %}disabled{% endif %}
+      style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"
+    >{{ about_text }}</textarea>
+
+    <div class="mt-3 d-flex gap-2 align-items-center">
+      <button type="submit" class="btn btn-primary" {% if not selected_study_id %}disabled{% endif %}>
+        Save changes
+      </button>
+      {% if not selected_study_id %}
+        <span class="text-muted">Select a study to enable editing.</span>
+      {% endif %}
+    </div>
+  </form>
+
+  <hr class="my-4">
+
+  
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const ta = document.getElementById("about_md");
+    if (!ta) return;
+
+    const isDisabled = ta.hasAttribute("disabled");
+
+    const editor = new EasyMDE({
+      element: ta,
+      forceSync: true,          // IMPORTANT: keeps textarea updated for POST
+      spellChecker: false,
+      status: false,
+      autofocus: false,
+      autoDownloadFontAwesome: false,
+      placeholder: ta.getAttribute("placeholder") || "",
+      toolbar: [
+        "bold", "italic", "heading",
+        "quote", "unordered-list", "ordered-list",
+        "link", "table"
+      ]
+    });
+
+    // Keep your "disabled until study selected" behavior:
+    if (isDisabled) {
+      editor.codemirror.setOption("readOnly", "nocursor");
+      // Optional: hide toolbar when no study selected
+      const toolbarEl = ta.parentElement.querySelector(".editor-toolbar");
+      if (toolbarEl) toolbarEl.style.display = "none";
+    }
+  });
+</script>
+
+{% endblock %}

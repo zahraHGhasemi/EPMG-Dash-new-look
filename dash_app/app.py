@@ -1,9 +1,11 @@
 import dash
 from dash import dcc, html
+from dash import clientside_callback, Input, Output, State
 
 from flask import render_template, request
 import plotly.express as px
 import dash_bootstrap_components as dbc
+from callbacks.about_callback import register_about_callbacks
 from callbacks.overview_callback import register_overview_callbacks
 
 from callbacks.tab_content_callbacks import register_tab_content_callbacks
@@ -33,6 +35,8 @@ def init_dash(server):
     app.title = "Energy Scenarios Dashboard"
     main_layout =  html.Div([
         dcc.Location(id = 'url', refresh = False),
+        html.Div(id="url-sync-dummy", style={"display": "none"}),
+
         html.Div([
             html.Img(
                 src="assets/EPMG LOGO.png",
@@ -62,7 +66,7 @@ def init_dash(server):
                     dcc.Tab(label = 'About', value = 'about'),
                     dcc.Tab(label='Overview', value='overview'),
                     # dcc.Tab(label='Chart Detail', value='all-charts'),
-                    dcc.Tab(label='Charts', value='compare-scenarios'),
+                    dcc.Tab(label='Charts', value='charts'),
                     dcc.Tab(label= "Sankey Diagram", value = 'sankey')
                 ]),
         html.Div(id='tab-content', children='Loading...'),
@@ -75,10 +79,34 @@ def init_dash(server):
             main_layout
         ])
     provider = SQLDataProvider(session=session)
+    clientside_callback(
+    """
+    function(tab, search) {
+        const params = new URLSearchParams(search || "");
+        const study_id = params.get("study_id") || "1";
+
+        params.set("study_id", study_id);
+        params.set("tab", tab);
+
+        const newUrl = "/dashboard?" + params.toString();
+
+        window.parent.postMessage(
+            {type: "DASH_URL_UPDATE", url: newUrl},
+            "*"
+        );
+
+        return "";
+    }
+    """,
+    Output("url-sync-dummy", "children"),
+    Input("tabs", "value"),
+    State("url", "search"),
+)
+
     register_tab_content_callbacks(app)
 
     register_overview_callbacks(app, provider=provider) 
-
+    register_about_callbacks(app)
     register_all_chart_callbacks(app,provider=provider)
     register_compare_chart_callbacks(app,provider=provider)
     register_sankey_callback(app)

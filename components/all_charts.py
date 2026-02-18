@@ -29,6 +29,7 @@ def options_layout():
                 html.Label("Scenario"),
                 dcc.Dropdown(
                     id='scenario-chart-dropdown',
+                    clearable= False,
                     # options= [{'label': s, 'value': s} for s in scenarios],
                     # value= scenarios[0] if len(scenarios) > 0 else None,
                 )
@@ -38,6 +39,7 @@ def options_layout():
                 html.Label("Sector"),
                 dcc.Dropdown(
                     id='category-dropdown',
+                    clearable= False,
                     # options= ['System', 'Supply', 'Power', 'Transport', 'Residential', 'Services',
                     #             'Industry', 'Agriculture'],
                     # value = 'System',
@@ -47,6 +49,7 @@ def options_layout():
                 html.Label('Subsector'),
                 dcc.Dropdown(
                     id='subcategory-dropdown',
+                    clearable= False,
                     options=[],  # To be populated based on category selection
                     value= None,  # Default value
                 )
@@ -58,6 +61,7 @@ def options_layout():
                 html.Label("Chart Types"),
                 dcc.Dropdown(
                     id='chart-type-dropdown',
+                    clearable= False,
                     options= {'bar': 'Bar', 'line': 'Line', 'area': 'Area'},
                     value= 'bar',
                 )
@@ -66,6 +70,7 @@ def options_layout():
                 html.Label("Unit"),
                 dcc.Dropdown(
                     id = "unit-dropdown",
+                    clearable= False,
                     options = [],
                     value = None
                 )

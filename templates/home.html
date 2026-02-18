@@ -2,7 +2,7 @@
 {% block title %}Login{% endblock %}
 {% block content %}
 <iframe
-    src="/dash/?study_id={{ request.args.get('study_id') }}"
+    src="/dash/?study_id={{ request.args.get('study_id') }}&tab={{ request.args.get('tab', 'about') }}"
     style="width:100%; height:90vh; border:none;">
 </iframe>
 {% endblock %}

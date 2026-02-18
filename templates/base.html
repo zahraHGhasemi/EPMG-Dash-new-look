@@ -8,6 +8,7 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
       rel="stylesheet"
     >
+
 </head>
 <body>
 
@@ -104,5 +105,11 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
+<script>
+  window.addEventListener("message", (event) => {
+    if (!event.data || event.data.type !== "DASH_URL_UPDATE") return;
+    window.history.replaceState({}, "", event.data.url);
+  });
+</script>
 </body>
 </html>

@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from flask import request, redirect, flash, url_for, Blueprint, render_template
 import pandas as pd
 from data_provider.sql_data import SQLDataProvider
-from auth.models import Table, db, Scenario, StudyScenario, Study, Series
+from auth.models import Table, db, Scenario, StudyScenario, Study, Series, StudyAbout
 from utils.update_db_table import process_uploaded_csv
 
 admin_bp = Blueprint(
@@ -244,3 +244,57 @@ def edit_titles():
     tables = Table.query.order_by(Table.name).all()
     series = Series.query.order_by(Series.name).all()
     return render_template("admin/edit_titles.html", tables=tables, series=series)
+
+
+@admin_bp.route("/study_about", methods=["GET", "POST"])
+@login_required
+@admin_required
+def study_about():    
+    studies = Study.query.order_by(Study.name.asc()).all()
+
+    selected_study_id = request.args.get("study_id", type=int)
+
+    if request.method == "POST":
+        selected_study_id = request.form.get("study_id", type=int)
+        about_md = (request.form.get("about_md") or "").strip()
+
+        if not selected_study_id:
+            flash("Please choose a study.", "danger")
+            return redirect(url_for("admin.study_about"))
+
+        if not about_md:
+            flash("About content cannot be empty.", "danger")
+            return redirect(url_for("admin.study_about", study_id=selected_study_id))
+
+        study = Study.query.get(selected_study_id)
+        if not study:
+            flash("Study not found.", "danger")
+            return redirect(url_for("admin.study_about"))
+
+        # UPSERT: update if exists, else create
+        about = StudyAbout.query.filter_by(study_id=selected_study_id).first()
+        if about:
+            about.description = about_md
+        else:
+            db.session.add(StudyAbout(study_id=selected_study_id, description=about_md))
+
+        db.session.commit()
+        flash(f"Saved About for “{study.name}”.", "success")
+        return redirect(url_for("admin.study_about", study_id=selected_study_id))
+
+    # GET: prefill about_md if present
+    about_text = ""
+    study_name = None
+    if selected_study_id:
+        study = Study.query.get(selected_study_id)
+        study_name = study.name if study else None
+        about = StudyAbout.query.filter_by(study_id=selected_study_id).first()
+        about_text = about.description if about else ""
+
+    return render_template(
+        "admin/study_about.html",
+        studies=studies,
+        selected_study_id=selected_study_id,
+        selected_study_name=study_name,
+        about_text=about_text,
+    )

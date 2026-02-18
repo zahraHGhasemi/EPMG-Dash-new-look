@@ -19,7 +19,7 @@ def init_user_dash(server):
                     # dcc.Tab(label = 'About', value = 'about'),
                     # dcc.Tab(label='Overview', value='overview'),
                     # dcc.Tab(label='Chart Detail', value='all-charts'),
-                    dcc.Tab(label='Charts', value='compare-scenarios'),
+                    dcc.Tab(label='Charts', value='charts'),
                     dcc.Tab(label= "Sankey Diagram", value = 'sankey')
                 ]),
         html.Div(id='tab-content', children='Loading...'),

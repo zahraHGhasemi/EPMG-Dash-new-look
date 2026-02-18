@@ -14,6 +14,241 @@ from urllib.parse import urlparse, parse_qs
 from auth.models import db
 
 session = db.session
+OIL = 'Oil'
+NATURAL_GAS = 'Natural gas'
+BIOENERGY = 'Bioenergy'
+OTHER_RENEWABLES = 'Other renewables'
+COAL = 'Coal'
+PEAT = 'Peat'
+HYDROGEN = 'Hydrogen'
+SOLAR = 'Solar'
+WIND_ONSHORE = 'Wind onshore'
+WIND_OFFSHORE = 'Wind offshore'
+ELECTRICITY_GENERATION = 'Electricity generated/impoted'
+ELECTRICITY_LOSS = 'Electricity loss'
+ELECTRICITY_IMPORT = 'Electricity import'
+ELECTRICITY_EXPORT = 'Electricity export'
+LOSS = 'Loss'
+RSD = 'Residential'
+IND = 'Industry'
+SRV = 'Services'
+AGR = 'Agriculture'
+TRA = 'Transport'
+
+def prepare_elec_gen_data(df_PWR_Gen_ELCC):
+    df_PWR_Gen_ELCC_filtered = df_PWR_Gen_ELCC[['seriesName', 'Value', 'seriesTitle']].copy()
+    df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('GAS'), 'seriesTitle'] = NATURAL_GAS
+
+    df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('BIO'), 'seriesTitle'] = BIOENERGY
+
+    df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('PWR-MSW'), 'seriesTitle'] = OTHER_RENEWABLES
+    df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('PWR-OCE'), 'seriesTitle'] = OTHER_RENEWABLES
+    df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('PWR-HYD'), 'seriesTitle'] = OTHER_RENEWABLES
+    # print(df_PWR_Gen_ELCC_filtered['seriesTitle'].unique(), 'seriesTitle in Elec generation************')
+    df_PWR_Gen_ELCC_filtered['target'] = ELECTRICITY_GENERATION
+    # print(df_PWR_Gen_ELCC_filtered[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('COA')])
+    # print(df_PWR_Gen_ELCC_filtered[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('GAS')])
+    # print(df_PWR_Gen_ELCC_filtered[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('BIO')])
+
+    # df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('COA'), 'Value'] /= 0.5
+    # df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('GAS'), 'Value'] /= 0.51
+    # df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('BIO'), 'Value'] /= 0.35
+    # print(df_PWR_Gen_ELCC_filtered[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('COA')])
+    # print(df_PWR_Gen_ELCC_filtered[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('GAS')])
+    # print(df_PWR_Gen_ELCC_filtered[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('BIO')])
+
+    return df_PWR_Gen_ELCC_filtered[['seriesTitle', 'Value', 'target']]
+def prepare_residential_data(df_rsd):
+    df_rsd_filtered = df_rsd[['seriesTitle', 'Value', 'seriesName']].copy()
+    df_rsd_filtered.loc[df_rsd_filtered['seriesName'].str.contains('RSDKER'), 'seriesTitle'] = OIL
+    df_rsd_filtered.loc[df_rsd_filtered['seriesName'].str.contains('RSDGAS'), 'seriesTitle'] = NATURAL_GAS
+    df_rsd_filtered.loc[df_rsd_filtered['seriesName'].str.contains('RSDLPG'), 'seriesTitle'] = NATURAL_GAS
+    df_rsd_filtered.loc[df_rsd_filtered['seriesName'].str.contains('RSDWOO'), 'seriesTitle'] = BIOENERGY
+    df_rsd_filtered.loc[df_rsd_filtered['seriesName'].str.contains('RSDBDL'), 'seriesTitle'] = BIOENERGY
+    df_rsd_filtered.loc[df_rsd_filtered['seriesName'].str.contains('RSDBGS'), 'seriesTitle'] = BIOENERGY
+    df_rsd_filtered.loc[df_rsd_filtered['seriesName'].str.contains('RSDETH'), 'seriesTitle'] = BIOENERGY
+    df_rsd_filtered.loc[df_rsd_filtered['seriesName'].str.contains('RSDAHT'), 'seriesTitle'] = OTHER_RENEWABLES
+    df_rsd_filtered.loc[df_rsd_filtered['seriesName'].str.contains('RSDHET'), 'seriesTitle'] = OTHER_RENEWABLES
+    df_rsd_filtered.loc[df_rsd_filtered['seriesName'].str.contains('RSDELC'), 'seriesTitle'] = ELECTRICITY_GENERATION
+
+    df_rsd_filtered['target'] = RSD
+    return df_rsd_filtered[['seriesTitle', 'Value', 'target']]
+
+def prepare_transport_data(df_tra):
+    df_tra_filtered = df_tra[['seriesTitle', 'Value', 'seriesName']].copy()
+    df_tra_filtered.loc[df_tra_filtered['seriesName'].str.contains('DST'), 'seriesTitle'] = OIL
+    df_tra_filtered.loc[df_tra_filtered['seriesName'].str.contains('GSL'), 'seriesTitle'] = OIL
+    df_tra_filtered.loc[df_tra_filtered['seriesName'].str.contains('KER'), 'seriesTitle'] = OIL
+    df_tra_filtered.loc[df_tra_filtered['seriesName'].str.contains('CNG'), 'seriesTitle'] = NATURAL_GAS
+    df_tra_filtered.loc[df_tra_filtered['seriesName'].str.contains('LNG'), 'seriesTitle'] = NATURAL_GAS
+    df_tra_filtered.loc[df_tra_filtered['seriesName'].str.contains('BDL'), 'seriesTitle'] = BIOENERGY
+    df_tra_filtered.loc[df_tra_filtered['seriesName'].str.contains('ETH'), 'seriesTitle'] = BIOENERGY
+    df_tra_filtered.loc[df_tra_filtered['seriesName'].str.contains('BNG'), 'seriesTitle'] = BIOENERGY
+    df_tra_filtered.loc[df_tra_filtered['seriesName'].str.contains('BJK'), 'seriesTitle'] = BIOENERGY
+
+    df_tra_filtered.loc[df_tra_filtered['seriesName'].str.contains('ELC'), 'seriesTitle'] = ELECTRICITY_GENERATION
+
+    df_tra_filtered['target'] = TRA
+    return df_tra_filtered[['seriesTitle', 'Value', 'target']]
+
+def prepare_industry_data(df_ind):
+    df_ind_filtered = df_ind[['seriesTitle', 'Value', 'seriesName']].copy()
+    df_ind_filtered.loc[df_ind_filtered['seriesName'].str.contains('INDBIO'), 'seriesTitle'] = BIOENERGY
+    df_ind_filtered.loc[df_ind_filtered['seriesName'].str.contains('INDBGS'), 'seriesTitle'] = BIOENERGY
+    df_ind_filtered.loc[df_ind_filtered['seriesName'].str.contains('INDWOO'), 'seriesTitle'] = BIOENERGY
+    df_ind_filtered.loc[df_ind_filtered['seriesName'].str.contains('INDCOK'), 'seriesTitle'] = COAL
+    df_ind_filtered.loc[df_ind_filtered['seriesName'].str.contains('INDNWS'), 'seriesTitle'] = OTHER_RENEWABLES
+    df_ind_filtered.loc[df_ind_filtered['seriesName'].str.contains('INDRWS'), 'seriesTitle'] = OTHER_RENEWABLES
+    df_ind_filtered.loc[df_ind_filtered['seriesName'].str.contains('INDOIL'), 'seriesTitle'] = OIL
+    df_ind_filtered.loc[df_ind_filtered['seriesName'].str.contains('INDH2'), 'seriesTitle'] = HYDROGEN
+    df_ind_filtered.loc[df_ind_filtered['seriesName'].str.contains('ELC'), 'seriesTitle'] = ELECTRICITY_GENERATION
+
+    df_ind_filtered['target'] = IND
+    return df_ind_filtered[['seriesTitle', 'Value', 'target']]
+
+def prepare_agriculture_data(df_agr):
+    df_agr_filtered = df_agr[['seriesTitle', 'Value', 'seriesName']].copy()
+    df_agr_filtered.loc[df_agr_filtered['seriesName'].str.contains('AGRDST'), 'seriesTitle'] = OIL
+    df_agr_filtered.loc[df_agr_filtered['seriesName'].str.contains('GAS'), 'seriesTitle'] = NATURAL_GAS
+    df_agr_filtered.loc[df_agr_filtered['seriesName'].str.contains('LPG'), 'seriesTitle'] = NATURAL_GAS
+    df_agr_filtered.loc[df_agr_filtered['seriesName'].str.contains('AGRBDL'), 'seriesTitle'] = BIOENERGY
+    df_agr_filtered.loc[df_agr_filtered['seriesName'].str.contains('AGRBIO'), 'seriesTitle'] = BIOENERGY
+    df_agr_filtered.loc[df_agr_filtered['seriesName'].str.contains('AGRBGS'), 'seriesTitle'] = BIOENERGY
+    df_agr_filtered.loc[df_agr_filtered['seriesName'].str.contains('AGRGEO'), 'seriesTitle'] = OTHER_RENEWABLES
+    df_agr_filtered.loc[df_agr_filtered['seriesName'].str.contains('ELC'), 'seriesTitle'] = ELECTRICITY_GENERATION
+
+    df_agr_filtered['target'] = AGR
+    return df_agr_filtered[['seriesTitle', 'Value', 'target']]
+
+def prepare_service_data(df_srv):
+    df_srv_filtered = df_srv[['seriesTitle', 'Value', 'seriesName']].copy()
+    df_srv_filtered.loc[df_srv_filtered['seriesName'].str.contains('SRVGAS'), 'seriesTitle'] = NATURAL_GAS
+    df_srv_filtered.loc[df_srv_filtered['seriesName'].str.contains('SRVLPG'), 'seriesTitle'] = NATURAL_GAS
+    df_srv_filtered.loc[df_srv_filtered['seriesName'].str.contains('SRVBIO'), 'seriesTitle'] = BIOENERGY
+    df_srv_filtered.loc[df_srv_filtered['seriesName'].str.contains('SRVBGS'), 'seriesTitle'] = BIOENERGY
+    df_srv_filtered.loc[df_srv_filtered['seriesName'].str.contains('SRVAHT'), 'seriesTitle'] = OTHER_RENEWABLES
+    df_srv_filtered.loc[df_srv_filtered['seriesName'].str.contains('SRVHET'), 'seriesTitle'] = OTHER_RENEWABLES
+  
+    df_srv_filtered.loc[df_srv_filtered['seriesName'].str.contains('ELC'), 'seriesTitle'] = ELECTRICITY_GENERATION
+
+    df_srv_filtered['target'] = SRV
+    return df_srv_filtered[['seriesTitle', 'Value', 'target']]
+def energy_loss_calculation(df, df_SYS_TPED, df_FEC_feul):
+    ls_feul = df['seriesTitle'].unique().tolist()
+    df_SYS_TPED['target'] = LOSS
+    # if ELECTRICITY_GENERATION in ls_feul:
+    #     ls_feul.remove(ELECTRICITY_GENERATION)
+    if df_SYS_TPED[df_SYS_TPED['seriesTitle'].str.contains('Electricity')]['Value'].sum() >=0:
+        df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'].str.contains('Electricity'), 'seriesTitle'] = ELECTRICITY_IMPORT
+        df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'].str.contains(ELECTRICITY_IMPORT), 'target'] = ELECTRICITY_GENERATION
+        # print(df_SYS_TPED)
+    else:
+        # print(df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'].str.contains('Electricity'), 'Value'], '-df_SYS_TPED.loc')
+        # print("----------")
+        df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'].str.contains('Electricity'), 'Value'] = -1 *df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'].str.contains('Electricity'), 'Value']
+        # print(df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'].str.contains('Electricity'), 'Value'], '-df_SYS_TPED.loc after change')
+        df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'].str.contains('Electricity'), 'target'] = ELECTRICITY_EXPORT
+        df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'].str.contains('Electricity'), 'seriesTitle'] = ELECTRICITY_GENERATION
+        # print(df_SYS_TPED)
+    
+    total_demand_exclude_elec = 0
+    total_cons_exclude_elec = 0
+    # print(df['seriesTitle'].unique(), 'seriesTitle************')
+    # print(df[df['target']!= ELECTRICITY_GENERATION]['Value'].sum())
+    # print(df[df['target'].isin([TRA,RSD,SRV,AGR,IND])]['Value'].sum())
+    # if abs(df[df['target']!= ELECTRICITY_GENERATION]['Value'].sum() - df_FEC_feul['Value'].sum()) < 5: 
+    #     print(df[df['target']!= ELECTRICITY_GENERATION]['Value'].sum(), 'FEC feul total', df_FEC_feul['Value'].sum(), 'FEC sector total')
+
+    #     print('FEC feul = FEC sector')
+    # else:
+    #     print(df[df['target']!= ELECTRICITY_GENERATION]['Value'].sum(), 'FEC feul total', df_FEC_feul['Value'].sum(), 'FEC sector total')
+    #     print('Mismatch between FEC fuel and FEC sector')
+    # print(ls_feul, 'ls_feul************')
+    for i in ls_feul:
+        if i == ELECTRICITY_GENERATION:
+            continue
+        total_demand_exclude_elec +=  df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'] == i, 'Value'].sum()
+        total_cons_exclude_elec +=  df[df['seriesTitle'] == i]['Value'].sum()
+        df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'] == i, 'Value'] -= df[df['seriesTitle'] == i]['Value'].sum()
+        if i == OTHER_RENEWABLES:
+            df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'] == i, 'Value'] -= df[df['seriesTitle'] == SOLAR]['Value'].sum()
+            df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'] == i, 'Value'] -= df[df['seriesTitle'] == WIND_ONSHORE]['Value'].sum()
+            df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'] == i, 'Value'] -= df[df['seriesTitle'] == WIND_OFFSHORE]['Value'].sum()
+    print( total_demand_exclude_elec, 'total_demand_exclude_elec',total_cons_exclude_elec,'total_cons_exclude_elec************')
+    # df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'] == BIOENERGY, 'Value'] -= df[df['seriesTitle'] == BIOENERGY]['Value'].sum()
+    # df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'] == OTHER_RENEWABLES, 'Value'] -= df[df['seriesTitle'] == OTHER_RENEWABLES]['Value'].sum()
+    # df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'] == NATURAL_GAS, 'Value'] -= df[df['seriesTitle'] == NATURAL_GAS]['Value'].sum()
+    # df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'] == OIL, 'Value'] -= df[df['seriesTitle'] == OIL]['Value'].sum() 
+    # df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'] == COAL, 'Value'] -= df[df['seriesTitle'] == COAL]['Value'].sum()
+    # df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'] == PEAT, 'Value'] -= df[df['seriesTitle'] == PEAT]['Value'].sum()
+    # print(total_demand_exclude_elec, 'total_demand_exclude_elec',total_cons_exclude_elec,'total_cons_exclude_elec************')
+    # df_SYS_TPED.loc[df_SYS_TPED['seriesName'].str.contains('ELE'), 'seriesTitle'] = ELECTRICITY_GENERATION
+    
+    # df_SYS_TPED.loc[df_SYS_TPED['seriesTitle'] == 'Electricity', 'Value'] = df[df['target'] == ELECTRICITY_GENERATION]['Value'].sum() - df[df['seriesTitle'] == ELECTRICITY_GENERATION]['Value'].sum()
+    
+
+    # print(df_SYS_TPED, 'df_sys_tped************')
+    return df_SYS_TPED[['seriesTitle', 'Value', 'target']]
+
+def primary_to_final_energy_sankey(scenario, year, provider = SQLDataProvider(session=session)):
+    
+    table_id_SYS_TPED = provider.get_table_id_by_name('SYS_TPED')
+    df_SYS_TPED = provider.get_filtered_df(table_id_SYS_TPED, scenario, [year, year])
+    table_id_FEC_feul = provider.get_table_id_by_name("SYS_FEC_Fuel")
+    df_FEC_feul = provider.get_filtered_df(table_id_FEC_feul, scenario, [year,year])
+    table_id_PWR_Gen_ELCC = provider.get_table_id_by_name('PWR_Gen-ELCC')
+    df_PWR_Gen_ELCC = provider.get_filtered_df(table_id_PWR_Gen_ELCC, scenario, [year, year])
+
+    table_id_agr = provider.get_table_id_by_name("AGR_FEC")
+    df_agr = provider.get_filtered_df(table_id_agr, scenario, [year,year])
+    table_id_ind = provider.get_table_id_by_name("IND_FEC")
+    df_ind = provider.get_filtered_df(table_id_ind, scenario, [year,year])
+    table_id_srv = provider.get_table_id_by_name("SRV_FEC")
+    df_srv = provider.get_filtered_df(table_id_srv, scenario, [year,year])
+    table_id_rsd = provider.get_table_id_by_name("RSD_FEC")
+    df_rsd = provider.get_filtered_df(table_id_rsd, scenario, [year,year])
+    table_id_tra = provider.get_table_id_by_name("TRA_FEC")
+    df_tra = provider.get_filtered_df(table_id_tra, scenario, [year,year])
+
+    df_PWR_Gen_ELCC = prepare_elec_gen_data(df_PWR_Gen_ELCC)
+    df_rsd = prepare_residential_data(df_rsd)
+    df_tra = prepare_transport_data(df_tra)
+    df_ind = prepare_industry_data(df_ind)
+    df_agr = prepare_agriculture_data(df_agr)
+    df_srv = prepare_service_data(df_srv)
+    total_sectors = df_rsd['Value'].sum() + df_tra['Value'].sum() + df_ind['Value'].sum() + df_agr['Value'].sum() + df_srv['Value'].sum()
+    table_id_FEC_sector = provider.get_table_id_by_name("SYS_FEC_Sector")
+    df_FEC_sector = provider.get_filtered_df(table_id_FEC_sector, scenario, [year,year])
+    total_sector_direct = df_FEC_sector['Value'].sum()
+    # print( df_agr['seriesTitle'].unique(), df_agr['target'].unique(), 'agr************')
+    # print( df_ind['seriesTitle'].unique(), df_ind['target'].unique(), 'ind************')
+    # print( df_srv['seriesTitle'].unique(), df_srv['target'].unique(), 'srv************')
+    # print( df_rsd['seriesTitle'].unique(), df_rsd['target'].unique(), 'rsd************')
+    # print(df_tra['seriesTitle'].unique(), df_tra['target'].unique(), 'tra************')
+
+    # print(total_sectors, 'total_sectors', total_sector_direct, 'total_sector_direct************')
+    df_all = pd.concat([df_PWR_Gen_ELCC, df_rsd, df_tra, df_ind, df_agr, df_srv], ignore_index=True)
+    df_SYS_TPED = energy_loss_calculation(df_all, df_SYS_TPED, df_FEC_feul)
+    df_all = pd.concat([df_all, df_SYS_TPED], ignore_index=True)
+    sum_out_elec_gen = df_all[df_all['seriesTitle'] == ELECTRICITY_GENERATION]['Value'].sum()
+    sum_in_elec_gen = df_all[df_all['target'] == ELECTRICITY_GENERATION]['Value'].sum()
+    elec_loss = sum_in_elec_gen - sum_out_elec_gen
+    # print(elec_loss, 'elec_loss************')
+    
+    if elec_loss >=0:
+        # print(sum_in_elec_gen)
+        # print(sum_out_elec_gen)
+        # print("Electricity generation data is consistent")
+        new_row = pd.DataFrame({
+        'seriesTitle': [ELECTRICITY_GENERATION],'Value': [elec_loss], 'target': [ELECTRICITY_LOSS]
+         })
+        df_all = pd.concat([df_all, new_row], ignore_index=True)
+
+    # print(df_all[(df_all['seriesTitle']== ELECTRICITY_GENERATION) | (df_all['target']== ELECTRICITY_GENERATION)][['Value', 'seriesTitle', 'target']], 'total elec gen related value************')
+    # print("---------------------------------------------------------------")
+    return df_all
+    
+
 
 def prepare_sankey_data_energy_source_to_sector(scenario, year,provider = SQLDataProvider(session=session)):
     table_id_agr = provider.get_table_id_by_name("AGR_FEC")
@@ -60,13 +295,13 @@ def prepare_sankey_data_SEAI(scenario, year, provider = SQLDataProvider(session=
     table_id_SYS_TPED = provider.get_table_id_by_name('SYS_TPED')
     table_id_FEC_Sector = provider.get_table_id_by_name("SYS_FEC_Sector")
     table_id_renewable = provider.get_table_id_by_name('PWR_Gen-ELCC')
-    print(table_id_SYS_TPED, table_id_FEC_Sector, table_id_renewable, 'table_ids************')
+    # print(table_id_SYS_TPED, table_id_FEC_Sector, table_id_renewable, 'table_ids************')
     df_SYS_TPED = provider.get_filtered_df(table_id_SYS_TPED, scenario, [year, year])
     df_FEC_Sector = provider.get_filtered_df(table_id_FEC_Sector, scenario, [year,year])
     df_renewable = provider.get_filtered_df(table_id_renewable, scenario, [year,year])
-    print(df_SYS_TPED.head(), 'df_SYS_TPED************')
-    print(df_FEC_Sector.head(), 'df_FEC_Sector************')
-    print(df_renewable.head(), 'df_renewable************')
+    # print(df_SYS_TPED.head(), 'df_SYS_TPED************')
+    # print(df_FEC_Sector.head(), 'df_FEC_Sector************')
+    # print(df_renewable.head(), 'df_renewable************')
 
     df_filtered = df_SYS_TPED[['seriesTitle','Value']]
     df_filtered.loc[len(df_filtered)] = ["Wind offshore", 0]
@@ -147,7 +382,7 @@ def compute_node_totals(df, nodes):
     for node in nodes:
         tin  = total_in[node]
         tout = total_out[node]
-
+ 
         if tin == 0:
             totals[node] = tout
         elif tout == 0:
@@ -155,8 +390,8 @@ def compute_node_totals(df, nodes):
         elif tin == tout or abs(tin - tout) < 1e-3:
             totals[node] = tin
         else:
-            print(tin, tout)
-            print('Mismatch in totals for node')
+            # print(tin, tout)
+            # print('Mismatch in totals for node')
             totals[node] = -1
 
     return totals
@@ -222,13 +457,19 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
     )
     def update_sankey(year, scenario, title):
         if title == 0:
-            df_all = prepare_sankey_data_energy_source_to_sector(scenario, year[0], provider = provider)
-            df_all_end = prepare_sankey_data_energy_source_to_sector(scenario, year[1], provider = provider)
+            # df_all = prepare_sankey_data_energy_source_to_sector(scenario, year[0], provider = provider)
+            # df_all_end = prepare_sankey_data_energy_source_to_sector(scenario, year[1], provider = provider)
+            df_all = primary_to_final_energy_sankey(scenario, year[0], provider = provider)
+            df_all_end = primary_to_final_energy_sankey(scenario, year[1], provider = provider)
 
         elif title == 1:
             df_all = prepare_sankey_data_SEAI(scenario, year[0], provider = provider)
             df_all_end = prepare_sankey_data_SEAI(scenario, year[1], provider = provider)
                 # Nodes
+        
         node, node_indices, node_colors = link_colors(df_all, df_all_end)
+        # df_test =primary_to_final_energy_sankey(scenario, year[0], provider = provider)
+        # print(df_test['seriesTitle'].unique(), 'seriesTitle************')  
+        # print(df_test['target'].unique(), 'target************')
         return draw_sankey(df_all, year[0], node, node_indices, node_colors), draw_sankey(df_all_end, year[1], node, node_indices, node_colors)
     

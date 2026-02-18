@@ -29,6 +29,13 @@ class Study(db.Model):
         secondary="study_scenarios",
         back_populates="studies"
     )
+    
+    about = db.relationship(
+        "StudyAbout",
+        back_populates="study",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
 class Scenario(db.Model):
     __tablename__ = "scenarios"
     id = db.Column(db.Integer, primary_key=True)
@@ -82,3 +89,22 @@ class Value(db.Model):
         db.UniqueConstraint('scenario_id', 'series_id', 'year', name='uq_value'),
     )
 
+class StudyAbout(db.Model):
+    __tablename__ = "study_about"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    study_id = db.Column(
+        db.Integer,
+        db.ForeignKey("studies.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False
+    )
+
+    description = db.Column(db.Text, nullable=False)
+
+
+    study = db.relationship(
+        "Study",
+        back_populates="about"
+    )
