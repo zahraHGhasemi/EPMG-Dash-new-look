@@ -1,25 +1,27 @@
 import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
 from dash import html, dcc
-# from utils.dataframe_melter import get_scenarios
-from utils.get_data import get_user_df
-# from utils.get_data import get_scenarios
-# df_override = get_user_df()  # Replace with actual DataFrame if needed
-# scenarios = get_scenarios(df_override=df_override)
-from data_provider.dataframe_data import DataFrameProvider
-# df_override = get_user_df()  # Replace with actual DataFrame if needed
-scenarios = DataFrameProvider().get_scenarios()
+from utils.dashboard_settings import get_dashboard_settings
+
+
 def sankey_layout ():
+    settings = get_dashboard_settings()
+    start_year = settings["start_year"]
+    end_year = settings["end_year"]
+    default_start_year = settings["default_start_year"]
+    default_end_year = settings["default_end_year"]
+    sankey_mode = settings["sankey_mode"]
+
     return dbc.Container([
         dbc.Row([
             dbc.Col([
                 html.Label("Year Range"),
                 dcc.RangeSlider(
                     id='year-sankey-slider',
-                    min= 2018, #all_data_melted['Year'].min(),
-                    max= 2050, #all_data_melted['Year'].max()-1,
-                    value=[2024, 2050],
-                    marks={str(year): str(year) for year in range( 2020,2050,5)}, #range(all_data_melted['Year'].min(), all_data_melted['Year'].max(), 1)},
+                    min=start_year, #all_data_melted['Year'].min(),
+                    max=end_year, #all_data_melted['Year'].max()-1,
+                    value=[default_start_year, default_end_year],
+                    marks={str(year): str(year) for year in range(start_year, end_year + 1, 5)}, #range(all_data_melted['Year'].min(), all_data_melted['Year'].max(), 1)},
                     step=1
                 )
             ])
@@ -41,7 +43,7 @@ def sankey_layout ():
                         {'label': 'Primary Energy to Demand detailed', 'value': 0},
                         {'label': 'Primary Energy to Final Energy', 'value': 1}
                     ],
-                    value=1
+                    value=sankey_mode
                 )
             ], width=6)
         ]),

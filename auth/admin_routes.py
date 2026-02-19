@@ -1,11 +1,13 @@
 from functools import wraps
-from flask import Blueprint, app, render_template, abort
+from flask import Blueprint, render_template
 from flask_login import login_required, current_user
-from flask import request, redirect, flash, url_for, Blueprint, render_template
+from flask import request, redirect, flash, url_for
 import pandas as pd
 from data_provider.sql_data import SQLDataProvider
 from auth.models import Table, db, Scenario, StudyScenario, Study, Series, StudyAbout
 from utils.update_db_table import process_uploaded_csv
+from utils.dashboard_settings import get_dashboard_settings, save_dashboard_settings
+from config.constants import CATEGORY_DICT
 
 admin_bp = Blueprint(
     "admin",
@@ -40,15 +42,15 @@ def upload_scenario():
         )
 
     files = request.files.getlist("files")
-    scenario_name = request.form.get("scenario_name")
+    scenario_name = (request.form.get("scenario_name") or "").strip()
 
     if not files or not scenario_name:
         flash("Scenario name and files are required", "danger")
         return redirect(url_for("admin.upload_scenario"))
     
     try:
-        for file in files:
-            df = pd.read_csv(file.stream)
+        dataframes = [pd.read_csv(file.stream) for file in files]
+        df = pd.concat(dataframes, ignore_index=True)
 
         # Check if scenario exists
         exists = db.session.query(Scenario).filter_by(name=scenario_name).first()
@@ -72,6 +74,86 @@ def upload_scenario():
         flash(f"Upload failed: {e}", "danger")
 
     return redirect(url_for("admin.upload_scenario"))
+
+
+@admin_bp.route("/default_values", methods=["GET", "POST"])
+@login_required
+@admin_required
+def default_values():
+    provider = SQLDataProvider(db.session)
+    studies = Study.query.order_by(Study.name.asc()).all()
+    categories = provider.get_categories()
+    study_scenarios_map = {
+        str(study.id): [s.name for s in provider.get_scenarios_for_study(study.id)]
+        for study in studies
+    }
+    sector_subsectors_map = {
+        str(category): provider.get_subcategories(category)
+        for category in categories
+    }
+
+    if request.method == "POST":
+        try:
+            payload = {
+                "start_year": request.form.get("start_year"),
+                "end_year": request.form.get("end_year"),
+                "default_start_year": request.form.get("default_start_year"),
+                "default_end_year": request.form.get("default_end_year"),
+                "default_tab": request.form.get("default_tab"),
+                "overview_metric": request.form.get("overview_metric"),
+                "overview_chart_type": request.form.get("overview_chart_type"),
+                "sankey_mode": request.form.get("sankey_mode"),
+                "default_study_id": request.form.get("default_study_id"),
+                "default_scenario": request.form.get("default_scenario"),
+                "default_sector": request.form.get("default_sector"),
+                "default_subsector": request.form.get("default_subsector"),
+            }
+
+            selected_study = (payload["default_study_id"] or "").strip()
+            selected_scenario = (payload["default_scenario"] or "").strip()
+            selected_sector = (payload["default_sector"] or "").strip()
+            selected_subsector = (payload["default_subsector"] or "").strip()
+
+            if selected_scenario and not selected_study:
+                raise ValueError("Choose a default study before choosing a default scenario.")
+
+            if selected_study:
+                allowed_scenarios = set(study_scenarios_map.get(selected_study, []))
+                if selected_scenario and selected_scenario not in allowed_scenarios:
+                    raise ValueError("Default scenario must belong to the selected default study.")
+
+            if selected_subsector and not selected_sector:
+                raise ValueError("Choose a default sector before choosing a default subsector.")
+
+            if selected_sector:
+                allowed_subsectors = set(sector_subsectors_map.get(selected_sector, []))
+                if selected_subsector and selected_subsector not in allowed_subsectors:
+                    raise ValueError("Default subsector must belong to the selected default sector.")
+
+            updated = save_dashboard_settings(payload)
+            flash("Dashboard defaults saved.", "success")
+            return render_template(
+                "admin/default_values.html",
+                settings=updated,
+                studies=studies,
+                categories=categories,
+                category_dict=CATEGORY_DICT,
+                study_scenarios_map=study_scenarios_map,
+                sector_subsectors_map=sector_subsectors_map,
+            )
+        except Exception as e:
+            flash(f"Could not save defaults: {e}", "danger")
+
+    settings = get_dashboard_settings()
+    return render_template(
+        "admin/default_values.html",
+        settings=settings,
+        studies=studies,
+        categories=categories,
+        category_dict=CATEGORY_DICT,
+        study_scenarios_map=study_scenarios_map,
+        sector_subsectors_map=sector_subsectors_map,
+    )
 
 
 

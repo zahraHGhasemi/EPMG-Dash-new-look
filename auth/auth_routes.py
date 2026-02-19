@@ -144,21 +144,20 @@ def logout():
 
 @auth_bp.route("/signup", methods=["GET", "POST"])
 def signup():
-    username = request.form.get("username").strip()
-    password = request.form.get("password").strip()
+    if request.method != "POST":
+        return redirect("/login")
+
+    username = (request.form.get("username") or "").strip()
+    password = (request.form.get("password") or "").strip()
     
     if User.query.filter_by(username=username).first():
-        flash("Username already exists.", "warning")  # 🟡
+        flash("Username already exists.", "warning") 
         return redirect("/login")
     
     if not username or not password:
         flash("Username and password are required.", "danger")
         return redirect("/login")
 
-    # Check if username exists
-    if User.query.filter_by(username=username).first():
-        flash("Username already exists. Please choose another.", "warning")
-        return redirect("/login")
 
     # Create new user with 'user' role only
     new_user = User(

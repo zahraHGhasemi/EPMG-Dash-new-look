@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Defaults{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-outline-secondary">
+        ← Back
+    </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="container mt-4" style="max-width: 900px;">
+    <h2>Dashboard Defaults</h2>
+    <p class="text-muted">
+        Update global defaults for charts and tabs shown to users.
+    </p>
+
+    <form method="POST">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Start Year</label>
+                <input type="number" class="form-control" name="start_year" value="{{ settings.start_year }}" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">End Year</label>
+                <input type="number" class="form-control" name="end_year" value="{{ settings.end_year }}" required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Default Start Year</label>
+                <input type="number" class="form-control" name="default_start_year" value="{{ settings.default_start_year }}" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Default End Year</label>
+                <input type="number" class="form-control" name="default_end_year" value="{{ settings.default_end_year }}" required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Default Tab</label>
+                <select class="form-select" name="default_tab" required>
+                    <option value="about" {% if settings.default_tab == "about" %}selected{% endif %}>About</option>
+                    <option value="overview" {% if settings.default_tab == "overview" %}selected{% endif %}>Overview</option>
+                    <option value="charts" {% if settings.default_tab == "charts" %}selected{% endif %}>Charts</option>
+                    <option value="sankey" {% if settings.default_tab == "sankey" %}selected{% endif %}>Sankey</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Overview Metric</label>
+                <select class="form-select" name="overview_metric" required>
+                    <option value="FEC" {% if settings.overview_metric == "FEC" %}selected{% endif %}>FEC</option>
+                    <option value="Import" {% if settings.overview_metric == "Import" %}selected{% endif %}>Import</option>
+                    <option value="Renewable" {% if settings.overview_metric == "Renewable" %}selected{% endif %}>Renewable</option>
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Overview Chart Type</label>
+                <select class="form-select" name="overview_chart_type" required>
+                    <option value="pie" {% if settings.overview_chart_type == "pie" %}selected{% endif %}>Pie</option>
+                    <option value="bar" {% if settings.overview_chart_type == "bar" %}selected{% endif %}>Bar</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Sankey Default Mode</label>
+                <select class="form-select" name="sankey_mode" required>
+                    <option value="1" {% if settings.sankey_mode == 1 %}selected{% endif %}>Primary Energy to Final Energy</option>
+                    <option value="0" {% if settings.sankey_mode == 0 %}selected{% endif %}>Primary Energy to Demand detailed</option>
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Default Study</label>
+                <select class="form-select" id="default_study_id" name="default_study_id">
+                    <option value="">Latest recent study (automatic)</option>
+                    {% for study in studies %}
+                      <option
+                        value="{{ study.id }}"
+                        {% if settings.default_study_id == study.id %}selected{% endif %}
+                      >
+                        {{ study.name }}
+                      </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Default Scenario</label>
+                <select class="form-select" id="default_scenario" name="default_scenario">
+                    <option value="">Automatic (first scenario in study)</option>
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Default Sector</label>
+                <select class="form-select" id="default_sector" name="default_sector">
+                    <option value="">Automatic</option>
+                    {% for category in categories %}
+                      <option
+                        value="{{ category }}"
+                        {% if settings.default_sector == category %}selected{% endif %}
+                      >
+                        {{ category_dict.get(category, category) }}
+                      </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Default Subsector</label>
+                <select class="form-select" id="default_subsector" name="default_subsector">
+                    <option value="">Automatic</option>
+                </select>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-4">Save Defaults</button>
+    </form>
+</div>
+
+<script>
+  const studyScenariosMap = {{ study_scenarios_map | tojson }};
+  const sectorSubsectorsMap = {{ sector_subsectors_map | tojson }};
+  const selectedScenario = {{ settings.default_scenario | tojson }};
+  const selectedSubsector = {{ settings.default_subsector | tojson }};
+
+  function refreshScenarioOptions() {
+    const studySelect = document.getElementById("default_study_id");
+    const scenarioSelect = document.getElementById("default_scenario");
+    const studyId = studySelect.value || "";
+    const scenarios = studyScenariosMap[studyId] || [];
+
+    scenarioSelect.innerHTML = "";
+    const autoOption = document.createElement("option");
+    autoOption.value = "";
+    autoOption.textContent = "Automatic (first scenario in study)";
+    scenarioSelect.appendChild(autoOption);
+
+    scenarios.forEach((name) => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      if (selectedScenario && selectedScenario === name) {
+        option.selected = true;
+      }
+      scenarioSelect.appendChild(option);
+    });
+  }
+
+  function refreshSubsectorOptions() {
+    const sectorSelect = document.getElementById("default_sector");
+    const subsectorSelect = document.getElementById("default_subsector");
+    const sector = sectorSelect.value || "";
+    const subsectors = sectorSubsectorsMap[sector] || [];
+
+    subsectorSelect.innerHTML = "";
+    const autoOption = document.createElement("option");
+    autoOption.value = "";
+    autoOption.textContent = "Automatic";
+    subsectorSelect.appendChild(autoOption);
+
+    subsectors.forEach((name) => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      if (selectedSubsector && selectedSubsector === name) {
+        option.selected = true;
+      }
+      subsectorSelect.appendChild(option);
+    });
+  }
+
+  document.getElementById("default_study_id").addEventListener("change", () => {
+    refreshScenarioOptions();
+  });
+
+  document.getElementById("default_sector").addEventListener("change", () => {
+    refreshSubsectorOptions();
+  });
+
+  refreshScenarioOptions();
+  refreshSubsectorOptions();
+</script>
+{% endblock %}

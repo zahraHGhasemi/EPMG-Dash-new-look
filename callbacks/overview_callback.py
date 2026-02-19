@@ -4,6 +4,7 @@ import plotly.express as px
 # from utils.dataframe_melter import get_data_melted
 from data_provider.sql_data import SQLDataProvider
 from utils.plot_chart import plot_pie_chart, plot_bar_chart, plot_two_pie_charts_px, plot_two_bar_charts_px
+from utils.dashboard_settings import get_dashboard_settings
 def register_overview_callbacks(app, provider):
     @app.callback(
         Output('scenario-dropdown', 'options'),
@@ -23,7 +24,12 @@ def register_overview_callbacks(app, provider):
 
         scenarios = provider.get_scenarios_for_study(int(study_id))
         options = [{"label": s.name, "value": s.name} for s in scenarios]
-        value = options[0]["value"] if options else None
+        configured = get_dashboard_settings().get("default_scenario")
+        option_values = {opt["value"] for opt in options}
+        if configured in option_values:
+            value = configured
+        else:
+            value = options[0]["value"] if options else None
         return options, value
     # def update_scenario_options(tab_value):
     #     scenarios = sorted(provider.get_scenarios())

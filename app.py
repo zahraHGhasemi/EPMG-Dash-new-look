@@ -118,7 +118,7 @@
 
 from flask import Flask, render_template, url_for
 from flask_login import LoginManager
-from auth.models import db, User
+from auth.models import db, User, Study
 # from utils.database_utils import SessionLocal
 from auth.auth_routes import auth_bp
 from dash_app.app import init_dash
@@ -128,7 +128,7 @@ from flask_session import Session
 from dash_app.user_dash import init_user_dash
 from flask import redirect, request
 from data_provider.sql_data import SQLDataProvider
-from config.constants import DEFAULT_TAB
+from utils.dashboard_settings import get_dashboard_settings
 import os
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
@@ -185,12 +185,20 @@ def home():
 @app.route("/dashboard")
 def dash_home():
     study_id = request.args.get("study_id")
-    tab = request.args.get("tab", DEFAULT_TAB)
+    settings = get_dashboard_settings()
+    default_tab = settings["default_tab"]
+    tab = request.args.get("tab", default_tab)
     provider = SQLDataProvider(session=db.session)
 
     if not study_id:
+        chosen_study = None
+        if settings.get("default_study_id"):
+            chosen_study = db.session.get(Study, int(settings["default_study_id"]))
+
+        if chosen_study:
+            return redirect(url_for("dash_home", study_id=chosen_study.id, tab=tab))
+
         latest_study = provider.get_latest_recent_study()
-        
         if latest_study:
             # redirect to /dash?study_id=<latest>
             return redirect(url_for("dash_home", study_id=latest_study.id, tab = tab))

@@ -12,6 +12,7 @@ import colorsys
 from data_provider.sql_data import SQLDataProvider
 from urllib.parse import urlparse, parse_qs
 from auth.models import db
+from utils.dashboard_settings import get_dashboard_settings
 
 session = db.session
 OIL = 'Oil'
@@ -444,7 +445,12 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
         scenarios = provider.get_scenarios_for_study(int(study_id))
 
         options = [{"label": s.name, "value": s.name} for s in scenarios]
-        value = options[0]["value"] if options else None
+        configured = get_dashboard_settings().get("default_scenario")
+        option_values = {opt["value"] for opt in options}
+        if configured in option_values:
+            value = configured
+        else:
+            value = options[0]["value"] if options else None
 
         return options, value
     @app.callback(

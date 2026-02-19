@@ -5,6 +5,7 @@ from components.all_charts import all_charts_layout
 from components.compare import compare_charts_layout
 from components.sankey import sankey_layout
 from components.about import about_layout
+from utils.dashboard_settings import get_dashboard_settings
 
 
 def register_tab_content_callbacks(app):
@@ -14,11 +15,12 @@ def register_tab_content_callbacks(app):
         Input("url", "href"),
     )
     def set_tab_from_url(href):
+        default_tab = get_dashboard_settings()["default_tab"]
         if not href:
-            return "about"
+            return default_tab
 
         qs = parse_qs(urlparse(href).query)
-        return qs.get("tab", ["about"])[0]
+        return qs.get("tab", [default_tab])[0]
     
     @app.callback(
         Output("url", "search"),
@@ -45,7 +47,7 @@ def register_tab_content_callbacks(app):
     def render_tab(tab):
        
         if tab == 'overview':
-            return overview_layout
+            return overview_layout()
         elif tab == 'charts':
             return compare_charts_layout()
         elif tab == 'about':

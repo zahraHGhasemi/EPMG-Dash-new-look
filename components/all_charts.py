@@ -4,22 +4,28 @@ from dash import dcc
 import dash_bootstrap_components as dbc
 # from utils.dataframe_melter import get_scenarios
 # from utils.get_data import get_scenarios, get_user_df
-from config.constants import START_YEAR, END_YEAR, DEFAULT_START_YEAR, DEFAULT_END_YEAR
+from utils.dashboard_settings import get_dashboard_settings
 # df_override = get_user_df()  # Replace with actual DataFrame if needed
 # scenarios = get_scenarios(df_override=df_override)
 # print("Available scenarios:", scenarios)
 
 def options_layout():
+    settings = get_dashboard_settings()
+    start_year = settings["start_year"]
+    end_year = settings["end_year"]
+    default_start_year = settings["default_start_year"]
+    default_end_year = settings["default_end_year"]
+
     return dbc.Container([
     dbc.Row([
             dbc.Col([
                 html.Label("Year Range"),
                 dcc.RangeSlider(
                     id='year-slider',
-                    min= START_YEAR, #all_data_melted['Year'].min(),
-                    max= END_YEAR, #all_data_melted['Year'].max()-1,
-                    value=[DEFAULT_START_YEAR, DEFAULT_END_YEAR],
-                    marks={str(year): str(year) for year in range( START_YEAR+2,END_YEAR,5)}, #range(all_data_melted['Year'].min(), all_data_melted['Year'].max(), 1)},
+                    min=start_year, #all_data_melted['Year'].min(),
+                    max=end_year, #all_data_melted['Year'].max()-1,
+                    value=[default_start_year, default_end_year],
+                    marks={str(year): str(year) for year in range(start_year, end_year + 1, 5)}, #range(all_data_melted['Year'].min(), all_data_melted['Year'].max(), 1)},
                     step=1
                 )
             ])
