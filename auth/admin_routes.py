@@ -166,6 +166,8 @@ def remove_studies_page():
 
 
 @admin_bp.route("/studies", methods=["GET", "POST"])
+@login_required
+@admin_required
 def admin_studies():
     if request.method == "POST":
         name = request.form.get("name")

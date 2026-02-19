@@ -128,10 +128,13 @@ from flask_session import Session
 from dash_app.user_dash import init_user_dash
 from flask import redirect, request
 from data_provider.sql_data import SQLDataProvider
-
+from config.constants import DEFAULT_TAB
 import os
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
+
+
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -182,13 +185,15 @@ def home():
 @app.route("/dashboard")
 def dash_home():
     study_id = request.args.get("study_id")
+    tab = request.args.get("tab", DEFAULT_TAB)
     provider = SQLDataProvider(session=db.session)
 
     if not study_id:
         latest_study = provider.get_latest_recent_study()
+        
         if latest_study:
             # redirect to /dash?study_id=<latest>
-            return redirect(url_for("dash_home", study_id=latest_study.id))
+            return redirect(url_for("dash_home", study_id=latest_study.id, tab = tab))
         else:
             return "No recent study available", 404
 
