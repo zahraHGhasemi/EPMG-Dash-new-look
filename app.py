@@ -189,6 +189,9 @@ def dash_home():
     default_tab = settings["default_tab"]
     tab = request.args.get("tab", default_tab)
     provider = SQLDataProvider(session=db.session)
+    query_params = request.args.to_dict()
+    if "tab" not in query_params or not query_params["tab"]:
+        query_params["tab"] = tab
 
     if not study_id:
         chosen_study = None
@@ -196,12 +199,14 @@ def dash_home():
             chosen_study = db.session.get(Study, int(settings["default_study_id"]))
 
         if chosen_study:
-            return redirect(url_for("dash_home", study_id=chosen_study.id, tab=tab))
+            query_params["study_id"] = chosen_study.id
+            return redirect(url_for("dash_home", **query_params))
 
         latest_study = provider.get_latest_recent_study()
         if latest_study:
             # redirect to /dash?study_id=<latest>
-            return redirect(url_for("dash_home", study_id=latest_study.id, tab = tab))
+            query_params["study_id"] = latest_study.id
+            return redirect(url_for("dash_home", **query_params))
         else:
             return "No recent study available", 404
 

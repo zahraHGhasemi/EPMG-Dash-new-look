@@ -20,7 +20,15 @@ def register_tab_content_callbacks(app):
             return default_tab
 
         qs = parse_qs(urlparse(href).query)
-        return qs.get("tab", [default_tab])[0]
+        tab_from_url = qs.get("tab", [None])[0]
+        if tab_from_url:
+            return tab_from_url
+
+        # If chart filters are present in a shared URL, open the Charts tab directly.
+        if any(key in qs for key in ("scenario", "sector", "subsector")):
+            return "charts"
+
+        return default_tab
     
     @app.callback(
         Output("url", "search"),
@@ -39,6 +47,10 @@ def register_tab_content_callbacks(app):
         if "study_id" not in qs or not qs["study_id"] or not qs["study_id"][0]:
             qs["study_id"] = ["1"]
         qs["tab"] = [tab_value]
+        if tab_value != "charts":
+            qs.pop("scenario", None)
+            qs.pop("sector", None)
+            qs.pop("subsector", None)
 
         return "?" + urlencode(qs, doseq=True)
     
