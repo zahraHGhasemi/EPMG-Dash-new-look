@@ -79,14 +79,16 @@ def init_dash(server):
             main_layout
         ])
     provider = SQLDataProvider(session=session)
-    clientside_callback(
+    app.clientside_callback(
     """
-    function(tab, search) {
+    function(search, tab) {
         const params = new URLSearchParams(search || "");
         const study_id = params.get("study_id") || "1";
 
         params.set("study_id", study_id);
-        params.set("tab", tab);
+        if (tab) {
+            params.set("tab", tab);
+        }
 
         const newUrl = "/dashboard?" + params.toString();
 
@@ -99,8 +101,8 @@ def init_dash(server):
     }
     """,
     Output("url-sync-dummy", "children"),
-    Input("tabs", "value"),
-    State("url", "search"),
+    Input("url", "search"),
+    State("tabs", "value"),
 )
 
     register_tab_content_callbacks(app)

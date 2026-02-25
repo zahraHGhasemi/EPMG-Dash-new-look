@@ -34,15 +34,19 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
     )
     def update_scenario_dropdown(href):
         if not href:
-            return []
+            return [], None
 
         query = parse_qs(urlparse(href).query)
         study_id = query.get("study_id", [None])[0]
 
         if not study_id:
-            return []
+            return [], None
 
-        scenarios = provider.get_scenarios_for_study(int(study_id))
+        try:
+            scenarios = provider.get_scenarios_for_study(int(study_id))
+        except (TypeError, ValueError):
+            return [], None
+
         options = [{"label": s.name, "value": s.name} for s in scenarios]
         value = options[1]["value"] if len(options) > 1 else None
         return options, value

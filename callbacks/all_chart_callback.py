@@ -1,4 +1,4 @@
-from dash import Input, Output, no_update
+from dash import Input, Output, State, no_update
 from urllib.parse import urlencode, urlparse, parse_qs
 from config.constants import CATEGORY_DICT
 from data_provider.sql_data import SQLDataProvider
@@ -57,9 +57,12 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
         scenarios = provider.get_scenarios_for_study(int(study_id))
         options = [{"label": s.name, "value": s.name} for s in scenarios]
 
+        selected_from_url = query.get("scenario", [None])[0]
         configured = get_dashboard_settings().get("default_scenario")
         option_values = {opt["value"] for opt in options}
-        if configured in option_values:
+        if selected_from_url in option_values:
+            value = selected_from_url
+        elif configured in option_values:
             value = configured
         else:
             value = options[0]["value"] if options else None
@@ -69,13 +72,20 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
     @app.callback(
         Output('category-dropdown', 'options'),
         Output('category-dropdown', 'value'),
-        Input('tabs', 'value')
+        Input("url", "href")
     )
-    def update_category_options(tab_value):
+    def update_category_options(href):
         categories = provider.get_categories()
 
+        selected_from_url = None
+        if href:
+            query = parse_qs(urlparse(href).query)
+            selected_from_url = query.get("sector", [None])[0]
+
         configured = get_dashboard_settings().get("default_sector")
-        if configured in categories:
+        if selected_from_url in categories:
+            value = selected_from_url
+        elif configured in categories:
             value = configured
         elif 'SYS' in categories:
             value = 'SYS'
@@ -87,17 +97,25 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
     @app.callback(
         Output('subcategory-dropdown', 'options'),
         Output('subcategory-dropdown', 'value'),
-        Input('category-dropdown', 'value')
+        Input('category-dropdown', 'value'),
+        State("url", "href")
     )
-    def update_subcategory_options(category):
+    def update_subcategory_options(category, href):
         subcategories = provider.get_subcategories(category)
         legacy_default_labels = {
             "Domestic CO2 Emissions by Sector",
             "Domestic CO₂ Emissions by Sector",
         }
 
+        selected_from_url = None
+        if href:
+            query = parse_qs(urlparse(href).query)
+            selected_from_url = query.get("subsector", [None])[0]
+
         configured = get_dashboard_settings().get("default_subsector")
-        if configured in subcategories:
+        if selected_from_url in subcategories:
+            value = selected_from_url
+        elif configured in subcategories:
             value = configured
         elif category == 'SYS' and any(label in subcategories for label in legacy_default_labels):
             value = next(label for label in legacy_default_labels if label in subcategories)
@@ -130,3 +148,38 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
             options = [label]
 
         return options, options[0]
+
+    @app.callback(
+        Output("url", "search", allow_duplicate=True),
+        Input("scenario-chart-dropdown", "value"),
+        Input("category-dropdown", "value"),
+        Input("subcategory-dropdown", "value"),
+        State("tabs", "value"),
+        State("url", "href"),
+        prevent_initial_call=True,
+    )
+    def sync_chart_filters_to_url(scenario, sector, subsector, tab, href):
+        if tab != "charts" or not href:
+            return no_update
+
+        parsed = urlparse(href)
+        query = parse_qs(parsed.query)
+        changed = False
+        if query.get("tab", [None])[0] != "charts":
+            query["tab"] = ["charts"]
+            changed = True
+
+        if scenario and query.get("scenario", [None])[0] != scenario:
+            query["scenario"] = [scenario]
+            changed = True
+        if sector and query.get("sector", [None])[0] != sector:
+            query["sector"] = [sector]
+            changed = True
+        if subsector and query.get("subsector", [None])[0] != subsector:
+            query["subsector"] = [subsector]
+            changed = True
+
+        if not changed:
+            return no_update
+
+        return "?" + urlencode(query, doseq=True)

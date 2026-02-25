@@ -29,15 +29,18 @@ def register_tab_content_callbacks(app):
         prevent_initial_call=True
     )
     def update_url_on_tab_click(tab_value, href):
-        # Keep study_id, add/update tab
+        # Keep existing query params and only update tab/study_id defaults.
         if not href:
             return "?" + urlencode({"study_id": "1", "tab": tab_value})
 
         parsed = urlparse(href)
         qs = parse_qs(parsed.query)
 
-        study_id = qs.get("study_id", ["1"])[0]
-        return "?" + urlencode({"study_id": study_id, "tab": tab_value})
+        if "study_id" not in qs or not qs["study_id"] or not qs["study_id"][0]:
+            qs["study_id"] = ["1"]
+        qs["tab"] = [tab_value]
+
+        return "?" + urlencode(qs, doseq=True)
     
     @app.callback(
         Output('tab-content', 'children'),

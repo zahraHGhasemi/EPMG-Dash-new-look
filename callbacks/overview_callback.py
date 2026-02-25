@@ -14,15 +14,20 @@ def register_overview_callbacks(app, provider):
     )
     def update_scenario_dropdown(href):
         if not href:
-            return []
+            return [], None
 
         query = parse_qs(urlparse(href).query)
         study_id = query.get("study_id", [None])[0]
 
         if not study_id:
-            return []
+            return [], None
 
-        scenarios = provider.get_scenarios_for_study(int(study_id))
+        try:
+            study_id = int(study_id)
+        except (TypeError, ValueError):
+            return [], None
+
+        scenarios = provider.get_scenarios_for_study(study_id)
         options = [{"label": s.name, "value": s.name} for s in scenarios]
         configured = get_dashboard_settings().get("default_scenario")
         option_values = {opt["value"] for opt in options}
