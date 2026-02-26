@@ -25,7 +25,7 @@ HYDROGEN = 'Hydrogen'
 SOLAR = 'Solar'
 WIND_ONSHORE = 'Wind onshore'
 WIND_OFFSHORE = 'Wind offshore'
-ELECTRICITY_GENERATION = 'Electricity generated/impoted'
+ELECTRICITY_GENERATION = 'Electricity supply'
 ELECTRICITY_LOSS = 'Electricity loss'
 ELECTRICITY_IMPORT = 'Electricity import'
 ELECTRICITY_EXPORT = 'Electricity export'
@@ -35,6 +35,12 @@ IND = 'Industry'
 SRV = 'Services'
 AGR = 'Agriculture'
 TRA = 'Transport'
+GAS_TO_ELEC_EFFICIENCY = 0.6
+HYDROGEN_TO_ELEC_EFFICIENCY = 0.59
+BIOENERGY_TO_ELEC_EFFICIENCY = 0.35
+GRID_EFFICIENCY = 0.94
+ELECTRICITY_TO_H2_EFFICIENCY = 0.85
+
 
 def prepare_elec_gen_data(df_PWR_Gen_ELCC):
     df_PWR_Gen_ELCC_filtered = df_PWR_Gen_ELCC[['seriesName', 'Value', 'seriesTitle']].copy()
@@ -45,20 +51,22 @@ def prepare_elec_gen_data(df_PWR_Gen_ELCC):
     df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('PWR-MSW'), 'seriesTitle'] = OTHER_RENEWABLES
     df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('PWR-OCE'), 'seriesTitle'] = OTHER_RENEWABLES
     df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('PWR-HYD'), 'seriesTitle'] = OTHER_RENEWABLES
-    # print(df_PWR_Gen_ELCC_filtered['seriesTitle'].unique(), 'seriesTitle in Elec generation************')
     df_PWR_Gen_ELCC_filtered['target'] = ELECTRICITY_GENERATION
-    # print(df_PWR_Gen_ELCC_filtered[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('COA')])
-    # print(df_PWR_Gen_ELCC_filtered[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('GAS')])
-    # print(df_PWR_Gen_ELCC_filtered[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('BIO')])
+    
+    df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('H2'), 'Value'] /= HYDROGEN_TO_ELEC_EFFICIENCY
+    df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('GAS'), 'Value'] /= GAS_TO_ELEC_EFFICIENCY
+    df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('BIO'), 'Value'] /= BIOENERGY_TO_ELEC_EFFICIENCY
+    if df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('H2'), 'Value'].sum() > 0: 
+        new_row = pd.DataFrame({
+            'seriesName': [ELECTRICITY_GENERATION],
+            'Value': [df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('H2'), 'Value'].sum()/ELECTRICITY_TO_H2_EFFICIENCY],
+            'seriesTitle': [ELECTRICITY_GENERATION],
+            'target': [HYDROGEN]
+        })
 
-    # df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('COA'), 'Value'] /= 0.5
-    # df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('GAS'), 'Value'] /= 0.51
-    # df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('BIO'), 'Value'] /= 0.35
-    # print(df_PWR_Gen_ELCC_filtered[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('COA')])
-    # print(df_PWR_Gen_ELCC_filtered[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('GAS')])
-    # print(df_PWR_Gen_ELCC_filtered[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('BIO')])
-
+        df_PWR_Gen_ELCC_filtered = pd.concat([df_PWR_Gen_ELCC_filtered, new_row], ignore_index=True)
     return df_PWR_Gen_ELCC_filtered[['seriesTitle', 'Value', 'target']]
+
 def prepare_residential_data(df_rsd):
     df_rsd_filtered = df_rsd[['seriesTitle', 'Value', 'seriesName']].copy()
     df_rsd_filtered.loc[df_rsd_filtered['seriesName'].str.contains('RSDKER'), 'seriesTitle'] = OIL
@@ -241,12 +249,30 @@ def primary_to_final_energy_sankey(scenario, year, provider = SQLDataProvider(se
         # print(sum_out_elec_gen)
         # print("Electricity generation data is consistent")
         new_row = pd.DataFrame({
-        'seriesTitle': [ELECTRICITY_GENERATION],'Value': [elec_loss], 'target': [ELECTRICITY_LOSS]
+        'seriesTitle': [ELECTRICITY_GENERATION],'Value': [elec_loss], 'target': [LOSS]
          })
         df_all = pd.concat([df_all, new_row], ignore_index=True)
-
+    else:
+        print("Electricity generation data inconsistency: more electricity consumed than generated. Please check the data.")
     # print(df_all[(df_all['seriesTitle']== ELECTRICITY_GENERATION) | (df_all['target']== ELECTRICITY_GENERATION)][['Value', 'seriesTitle', 'target']], 'total elec gen related value************')
     # print("---------------------------------------------------------------")
+    sum_out_h2 = df_all[df_all['seriesTitle'] == HYDROGEN]['Value'].sum()
+    sum_in_h2 = df_all[df_all['target'] == HYDROGEN]['Value'].sum()
+    h2_loss = sum_in_h2 - sum_out_h2
+    # print(h2_loss, 'h2_loss************')
+    if h2_loss >=0:
+        new_row = pd.DataFrame({
+        'seriesTitle': [HYDROGEN],'Value': [h2_loss], 'target': [LOSS]
+         })
+        df_all = pd.concat([df_all, new_row], ignore_index=True)
+    elif sum_in_h2 ==0:
+        return df_all
+    else:
+        new_row = pd.DataFrame({
+        'seriesTitle': [HYDROGEN + ' source'],'Value': [-1 *h2_loss], 'target': [HYDROGEN]
+         })
+        df_all = pd.concat([df_all, new_row], ignore_index=True)
+        print("Hydrogen generation data inconsistency: more hydrogen consumed than generated. Please check the data.")
     return df_all
     
 
