@@ -4,3 +4,5 @@ data_new/data.db
 data/
 .env
 .env.*
+__pycache__/
+*.pyc

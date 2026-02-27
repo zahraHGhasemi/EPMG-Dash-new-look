@@ -1,10 +1,5 @@
 from urllib.parse import parse_qs, urlparse, urlencode
 from dash import Input, Output, State
-from components.overview import overview_layout
-from components.all_charts import all_charts_layout
-from components.compare import compare_charts_layout
-from components.sankey import sankey_layout
-from components.about import about_layout
 from utils.dashboard_settings import get_dashboard_settings
 
 
@@ -55,17 +50,18 @@ def register_tab_content_callbacks(app):
         return "?" + urlencode(qs, doseq=True)
     
     @app.callback(
-        Output('tab-content', 'children'),
-        Input('tabs', 'value'),
-        
+        Output("tab-about-pane", "style"),
+        Output("tab-overview-pane", "style"),
+        Output("tab-charts-pane", "style"),
+        Output("tab-sankey-pane", "style"),
+        Input("tabs", "value"),
     )
-    def render_tab(tab):
-       
-        if tab == 'overview':
-            return overview_layout()
-        elif tab == 'charts':
-            return compare_charts_layout()
-        elif tab == 'about':
-            return about_layout()
-        elif tab == 'sankey':
-            return sankey_layout()
+    def toggle_tab_panes(tab):
+        hidden = {"display": "none"}
+        visible = {"display": "block"}
+        return (
+            visible if tab == "about" else hidden,
+            visible if tab == "overview" else hidden,
+            visible if tab == "charts" else hidden,
+            visible if tab == "sankey" else hidden,
+        )

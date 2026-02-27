@@ -1,5 +1,5 @@
 from urllib.parse import parse_qs, urlparse
-from dash import Input, Output
+from dash import Input, Output, State
 import plotly.express as px
 # from utils.dataframe_melter import get_data_melted
 from data_provider.sql_data import SQLDataProvider
@@ -10,9 +10,10 @@ def register_overview_callbacks(app, provider):
         Output('scenario-dropdown', 'options'),
         Output('scenario-dropdown', 'value'),
     #     Input('tabs', 'value') 
-        Input("url", "href")
+        Input("url", "href"),
+        State("scenario-dropdown", "value")
     )
-    def update_scenario_dropdown(href):
+    def update_scenario_dropdown(href, current_value):
         if not href:
             return [], None
 
@@ -31,7 +32,9 @@ def register_overview_callbacks(app, provider):
         options = [{"label": s.name, "value": s.name} for s in scenarios]
         configured = get_dashboard_settings().get("default_scenario")
         option_values = {opt["value"] for opt in options}
-        if configured in option_values:
+        if current_value in option_values:
+            value = current_value
+        elif configured in option_values:
             value = configured
         else:
             value = options[0]["value"] if options else None

@@ -456,9 +456,10 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
     @app.callback(
         Output('scenario-sankey-dropdown', 'options'),
         Output('scenario-sankey-dropdown', 'value'),
-        Input("url", "href")
+        Input("url", "href"),
+        State("scenario-sankey-dropdown", "value")
     )
-    def update_sankey_scenario_options(href):
+    def update_sankey_scenario_options(href, current_value):
         if not href:
             return [], None
 
@@ -473,7 +474,9 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
         options = [{"label": s.name, "value": s.name} for s in scenarios]
         configured = get_dashboard_settings().get("default_scenario")
         option_values = {opt["value"] for opt in options}
-        if configured in option_values:
+        if current_value in option_values:
+            value = current_value
+        elif configured in option_values:
             value = configured
         else:
             value = options[0]["value"] if options else None

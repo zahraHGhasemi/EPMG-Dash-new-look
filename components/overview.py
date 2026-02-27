@@ -31,7 +31,11 @@ def overview_layout():
     
         dbc.Col([
                 html.Label("Scenario", className="control-label"),
-                dcc.Dropdown(id='scenario-dropdown')
+                dcc.Dropdown(
+                    id='scenario-dropdown',
+                    persistence=True,
+                    persistence_type='session'
+                )
                 # get_scenario_dropdown()
                 # dcc.Dropdown(
                 #     id='scenario-dropdown',
@@ -46,7 +50,9 @@ def overview_layout():
                 dcc.Dropdown(
                     id='start-year-dropdown',
                     options=[{'label': str(year), 'value': year} for year in range(start_year, end_year + 1)],
-                    value=default_start_year
+                    value=default_start_year,
+                    persistence=True,
+                    persistence_type='session'
                 )
         ], width =1),
         dbc.Col([
@@ -54,7 +60,9 @@ def overview_layout():
                 dcc.Dropdown(
                     id='end-year-dropdown',
                     options=[{'label': str(year), 'value': year} for year in range(start_year, end_year + 1)],
-                    value=default_end_year
+                    value=default_end_year,
+                    persistence=True,
+                    persistence_type='session'
                 )
         ], width =1),
         dbc.Col([
@@ -62,7 +70,9 @@ def overview_layout():
                 dcc.Dropdown(
                     id='metric-dropdown',
                     options=['FEC', 'Import', 'Renewable'],
-                    value=overview_metric
+                    value=overview_metric,
+                    persistence=True,
+                    persistence_type='session'
                 ) 
         ], width=4),
         dbc.Col([
@@ -71,6 +81,8 @@ def overview_layout():
                     id='chart-type-overview-dropdown',
                     options= {'bar': 'Bar', 'pie': 'Pie'},
                     value=overview_chart_type,
+                    persistence=True,
+                    persistence_type='session'
                 ),
         ], width=2)
     ], className="mb-4"),

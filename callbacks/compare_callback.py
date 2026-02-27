@@ -30,9 +30,10 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
         Output('compare-scenario-dropdown', 'options'),
         Output('compare-scenario-dropdown', 'value'),
         # Input('tabs', 'value')  # just a dummy input to trigger on load
-        Input("url", "href")
+        Input("url", "href"),
+        State("compare-scenario-dropdown", "value")
     )
-    def update_scenario_dropdown(href):
+    def update_scenario_dropdown(href, current_value):
         if not href:
             return [], None
 
@@ -48,7 +49,11 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
             return [], None
 
         options = [{"label": s.name, "value": s.name} for s in scenarios]
-        value = options[1]["value"] if len(options) > 1 else None
+        option_values = {opt["value"] for opt in options}
+        if current_value in option_values:
+            value = current_value
+        else:
+            value = options[1]["value"] if len(options) > 1 else None
         return options, value
     # def update_compare_scenarios(tab_value):
     #     scenarios = sorted(provider.get_scenarios())

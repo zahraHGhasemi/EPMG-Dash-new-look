@@ -22,7 +22,9 @@ def sankey_layout ():
                     max=end_year, #all_data_melted['Year'].max()-1,
                     value=[default_start_year, default_end_year],
                     marks={str(year): str(year) for year in range(start_year, end_year + 1, 5)}, #range(all_data_melted['Year'].min(), all_data_melted['Year'].max(), 1)},
-                    step=1
+                    step=1,
+                    persistence=True,
+                    persistence_type='session'
                 )
             ])
         ]),
@@ -31,6 +33,8 @@ def sankey_layout ():
                 html.Label("Scenario"),
                 dcc.Dropdown(
                     id='scenario-sankey-dropdown',
+                    persistence=True,
+                    persistence_type='session',
                     # options= [{'label': s, 'value': s} for s in scenarios],
                     # value= scenarios[0] if len(scenarios) > 0 else None,
                 )
@@ -43,7 +47,9 @@ def sankey_layout ():
                         {'label': 'Primary Energy to Demand detailed', 'value': 0},
                         {'label': 'Primary Energy to Final Energy', 'value': 1}
                     ],
-                    value=sankey_mode
+                    value=sankey_mode,
+                    persistence=True,
+                    persistence_type='session'
                 )
             ], width=6)
         ]),

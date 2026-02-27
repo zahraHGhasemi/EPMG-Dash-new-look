@@ -13,6 +13,10 @@ from callbacks.tab_content_callbacks import register_tab_content_callbacks
 from callbacks.all_chart_callback import register_all_chart_callbacks
 from callbacks.compare_callback import register_compare_chart_callbacks
 from callbacks.sankey_callback import register_sankey_callback
+from components.overview import overview_layout
+from components.compare import compare_charts_layout
+from components.about import about_layout
+from components.sankey import sankey_layout
 
 from data_provider.sql_data import SQLDataProvider
 
@@ -36,6 +40,7 @@ def init_dash(server):
     main_layout =  html.Div([
         dcc.Location(id = 'url', refresh = False),
         html.Div(id="url-sync-dummy", style={"display": "none"}),
+        dcc.Store(id="tab-state-store", storage_type="session"),
 
         html.Div([
             html.Img(
@@ -69,7 +74,15 @@ def init_dash(server):
                     dcc.Tab(label='Charts', value='charts'),
                     dcc.Tab(label= "Sankey Diagram", value = 'sankey')
                 ]),
-        html.Div(id='tab-content', children='Loading...'),
+        html.Div(
+            id='tab-content',
+            children=[
+                html.Div(id="tab-about-pane", children=about_layout()),
+                html.Div(id="tab-overview-pane", children=overview_layout(), style={"display": "none"}),
+                html.Div(id="tab-charts-pane", children=compare_charts_layout(), style={"display": "none"}),
+                html.Div(id="tab-sankey-pane", children=sankey_layout(), style={"display": "none"}),
+            ]
+        ),
             ], width=12)
         ])
         

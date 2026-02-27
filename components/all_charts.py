@@ -26,7 +26,9 @@ def options_layout():
                     max=end_year, #all_data_melted['Year'].max()-1,
                     value=[default_start_year, default_end_year],
                     marks={str(year): str(year) for year in range(start_year, end_year + 1, 5)}, #range(all_data_melted['Year'].min(), all_data_melted['Year'].max(), 1)},
-                    step=1
+                    step=1,
+                    persistence=True,
+                    persistence_type='session'
                 )
             ])
         ]),
@@ -36,6 +38,8 @@ def options_layout():
                 dcc.Dropdown(
                     id='scenario-chart-dropdown',
                     clearable= False,
+                    persistence=True,
+                    persistence_type='session',
                     # options= [{'label': s, 'value': s} for s in scenarios],
                     # value= scenarios[0] if len(scenarios) > 0 else None,
                 )
@@ -46,6 +50,8 @@ def options_layout():
                 dcc.Dropdown(
                     id='category-dropdown',
                     clearable= False,
+                    persistence=True,
+                    persistence_type='session',
                     # options= ['System', 'Supply', 'Power', 'Transport', 'Residential', 'Services',
                     #             'Industry', 'Agriculture'],
                     # value = 'System',
@@ -58,6 +64,8 @@ def options_layout():
                     clearable= False,
                     options=[],  # To be populated based on category selection
                     value= None,  # Default value
+                    persistence=True,
+                    persistence_type='session'
                 )
             ], width=4)
 
@@ -70,6 +78,8 @@ def options_layout():
                     clearable= False,
                     options= {'bar': 'Bar', 'line': 'Line', 'area': 'Area'},
                     value= 'bar',
+                    persistence=True,
+                    persistence_type='session'
                 )
             ], width=6),
             dbc.Col([
@@ -78,7 +88,9 @@ def options_layout():
                     id = "unit-dropdown",
                     clearable= False,
                     options = [],
-                    value = None
+                    value = None,
+                    persistence=True,
+                    persistence_type='session'
                 )
             ], width=6)
         ])

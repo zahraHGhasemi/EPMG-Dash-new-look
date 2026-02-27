@@ -42,9 +42,10 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
     @app.callback(
         Output('scenario-chart-dropdown', 'options'),
         Output('scenario-chart-dropdown', 'value'),
-        Input("url", "href")
+        Input("url", "href"),
+        State("scenario-chart-dropdown", "value")
     )
-    def update_scenario_dropdown(href):
+    def update_scenario_dropdown(href, current_value):
         if not href:
             return [], None
 
@@ -54,13 +55,18 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
         if not study_id:
             return [], None
 
-        scenarios = provider.get_scenarios_for_study(int(study_id))
+        try:
+            scenarios = provider.get_scenarios_for_study(int(study_id))
+        except (TypeError, ValueError):
+            return [], None
         options = [{"label": s.name, "value": s.name} for s in scenarios]
 
         selected_from_url = query.get("scenario", [None])[0]
         configured = get_dashboard_settings().get("default_scenario")
         option_values = {opt["value"] for opt in options}
-        if selected_from_url in option_values:
+        if current_value in option_values:
+            value = current_value
+        elif selected_from_url in option_values:
             value = selected_from_url
         elif configured in option_values:
             value = configured
@@ -72,9 +78,10 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
     @app.callback(
         Output('category-dropdown', 'options'),
         Output('category-dropdown', 'value'),
-        Input("url", "href")
+        Input("url", "href"),
+        State("category-dropdown", "value")
     )
-    def update_category_options(href):
+    def update_category_options(href, current_value):
         categories = provider.get_categories()
 
         selected_from_url = None
@@ -83,7 +90,9 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
             selected_from_url = query.get("sector", [None])[0]
 
         configured = get_dashboard_settings().get("default_sector")
-        if selected_from_url in categories:
+        if current_value in categories:
+            value = current_value
+        elif selected_from_url in categories:
             value = selected_from_url
         elif configured in categories:
             value = configured
@@ -98,9 +107,10 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
         Output('subcategory-dropdown', 'options'),
         Output('subcategory-dropdown', 'value'),
         Input('category-dropdown', 'value'),
-        State("url", "href")
+        State("url", "href"),
+        State("subcategory-dropdown", "value")
     )
-    def update_subcategory_options(category, href):
+    def update_subcategory_options(category, href, current_value):
         subcategories = provider.get_subcategories(category)
         legacy_default_labels = {
             "Domestic CO2 Emissions by Sector",
@@ -113,7 +123,9 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
             selected_from_url = query.get("subsector", [None])[0]
 
         configured = get_dashboard_settings().get("default_subsector")
-        if selected_from_url in subcategories:
+        if current_value in subcategories:
+            value = current_value
+        elif selected_from_url in subcategories:
             value = selected_from_url
         elif configured in subcategories:
             value = configured
@@ -130,9 +142,10 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
         Input('subcategory-dropdown', 'value'),
         Input('category-dropdown', 'value'),
         Input('scenario-chart-dropdown', 'value'),
-        Input('year-slider', 'value')
+        Input('year-slider', 'value'),
+        State('unit-dropdown', 'value')
     )
-    def update_unit(table_name, category, scenario, year_range):
+    def update_unit(table_name, category, scenario, year_range, current_value):
         table_id = provider.get_table_id(table_name, category)
         df_unit = provider.get_labels(table_id)
 
@@ -147,6 +160,8 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
         else:
             options = [label]
 
+        if current_value in options:
+            return options, current_value
         return options, options[0]
 
     @app.callback(

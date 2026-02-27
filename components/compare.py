@@ -26,13 +26,17 @@ def compare_charts_layout():
                                 {'label': 'No', 'value': 0},
                             ],
                             value=0,  # Default selection
-                            inline=True
+                            inline=True,
+                            persistence=True,
+                            persistence_type='session'
                         )
                     ],width = 3),
                     dbc.Col([
                         html.Label("Compare Scenario", className="control-label"),
                         dcc.Dropdown(
                             id='compare-scenario-dropdown',
+                            persistence=True,
+                            persistence_type='session',
                             # options=[{'label': s, 'value': s} for s in scenarios],
                             # value=scenarios[1] if len(scenarios) > 1 else None,
                         ),
@@ -46,7 +50,9 @@ def compare_charts_layout():
                                 {'label': 'No', 'value': 'no'},
                             ],
                             value='no',  # Default selection
-                            inline=True
+                            inline=True,
+                            persistence=True,
+                            persistence_type='session'
                         ) 
                     ],width = 3)
                 ])
