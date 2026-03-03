@@ -46,7 +46,7 @@ def overview_layout():
                 # )
         ], width=4),
         dbc.Col([
-                html.Label("Start year", className="control-label"),
+                html.Label("Start Year", className="control-label"),
                 dcc.Dropdown(
                     id='start-year-dropdown',
                     options=[{'label': str(year), 'value': year} for year in range(start_year, end_year + 1)],
@@ -56,7 +56,7 @@ def overview_layout():
                 )
         ], width =1),
         dbc.Col([
-                html.Label("End year", className="control-label"),
+                html.Label("End Year", className="control-label"),
                 dcc.Dropdown(
                     id='end-year-dropdown',
                     options=[{'label': str(year), 'value': year} for year in range(start_year, end_year + 1)],

@@ -3,6 +3,7 @@ from flask import Blueprint, render_template
 from flask_login import login_required, current_user
 from flask import request, redirect, flash, url_for
 import pandas as pd
+import os
 from data_provider.sql_data import SQLDataProvider
 from auth.models import Table, db, Scenario, StudyScenario, Study, Series, StudyAbout
 from utils.update_db_table import process_uploaded_csv
@@ -23,6 +24,17 @@ def admin_required(func):
         return func(*args, **kwargs)
     return wrapper
 
+
+def _infer_scenario_name_from_files(files):
+    for file in files:
+        filename = (getattr(file, "filename", "") or "").strip()
+        if not filename:
+            continue
+        stem = os.path.splitext(os.path.basename(filename))[0].strip()
+        if stem:
+            return stem
+    return ""
+
 @admin_bp.route("/panel")
 @login_required
 @admin_required
@@ -41,11 +53,17 @@ def upload_scenario():
             title="Upload scenario to main database"
         )
 
-    files = request.files.getlist("files")
+    files = [f for f in request.files.getlist("files") if (getattr(f, "filename", "") or "").strip()]
     scenario_name = (request.form.get("scenario_name") or "").strip()
+    if not scenario_name:
+        scenario_name = _infer_scenario_name_from_files(files)
 
-    if not files or not scenario_name:
-        flash("Scenario name and files are required", "danger")
+    if not files:
+        flash("At least one CSV file is required", "danger")
+        return redirect(url_for("admin.upload_scenario"))
+
+    if not scenario_name:
+        flash("Scenario name is required", "danger")
         return redirect(url_for("admin.upload_scenario"))
     
     try:
@@ -382,3 +400,6 @@ def study_about():
         selected_study_name=study_name,
         about_text=about_text,
     )
+
+
+

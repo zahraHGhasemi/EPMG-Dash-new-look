@@ -169,7 +169,7 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
         Input("scenario-chart-dropdown", "value"),
         Input("category-dropdown", "value"),
         Input("subcategory-dropdown", "value"),
-        State("tabs", "value"),
+        Input("tabs", "value"),
         State("url", "href"),
         prevent_initial_call=True,
     )

@@ -30,12 +30,12 @@
 
         <div class="mb-3">
             <label class="form-label">Scenario Name</label>
-            <input type="text" class="form-control" name="scenario_name" required>
+            <input type="text" class="form-control" id="scenario-name-input" name="scenario_name" required>
         </div>
 
         <div class="mb-3">
             <label class="form-label">Upload CSV Files</label>
-            <input type="file" class="form-control" name="files" multiple accept=".csv" required>
+            <input type="file" class="form-control" id="scenario-files-input" name="files" multiple accept=".csv" required>
             <small class="text-muted">You can select CSV file</small>
         </div>
 
@@ -46,4 +46,30 @@
     </form>
 
 </div>
+<script>
+  (function () {
+    const fileInput = document.getElementById("scenario-files-input");
+    const nameInput = document.getElementById("scenario-name-input");
+    if (!fileInput || !nameInput) return;
+
+    fileInput.addEventListener("change", function () {
+      const currentName = (nameInput.value || "").trim();
+      if (currentName) {
+        return;
+      }
+
+      if (!fileInput.files || fileInput.files.length === 0) {
+        return;
+      }
+
+      const firstFile = fileInput.files[0].name || "";
+      const autoName = firstFile.replace(/\.csv$/i, "");
+      if (autoName) {
+        nameInput.value = autoName;
+      }
+    });
+  })();
+</script>
 {% endblock %}
+
+
