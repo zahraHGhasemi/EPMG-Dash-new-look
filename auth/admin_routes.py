@@ -342,10 +342,27 @@ def edit_titles():
         flash("Titles updated successfully!", "success")
         return redirect("/admin/edit_titles")
 
-    # GET: show all tables and series
+    # GET: show tables with their related series grouped together
     tables = Table.query.order_by(Table.name).all()
-    series = Series.query.order_by(Series.name).all()
-    return render_template("admin/edit_titles.html", tables=tables, series=series)
+    all_series = (
+        Series.query
+        .order_by(Series.table_id, Series.name)
+        .all()
+    )
+
+    series_by_table_id = {}
+    for item in all_series:
+        series_by_table_id.setdefault(item.table_id, []).append(item)
+
+    grouped_titles = [
+        {
+            "table": table,
+            "series": series_by_table_id.get(table.id, []),
+        }
+        for table in tables
+    ]
+
+    return render_template("admin/edit_titles.html", grouped_titles=grouped_titles)
 
 
 @admin_bp.route("/study_about", methods=["GET", "POST"])

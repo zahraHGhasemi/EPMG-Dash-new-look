@@ -6,3 +6,10 @@ data/
 .env.*
 __pycache__/
 *.pyc
+
+# Local test scaffolding (do not push)
+tests/
+pytest.ini
+
+# Local session state
+flask_session/
