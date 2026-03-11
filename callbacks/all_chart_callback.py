@@ -78,11 +78,12 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
     @app.callback(
         Output('category-dropdown', 'options'),
         Output('category-dropdown', 'value'),
+        Input("scenario-chart-dropdown", "value"),
         Input("url", "href"),
         State("category-dropdown", "value")
     )
-    def update_category_options(href, current_value):
-        categories = provider.get_categories()
+    def update_category_options(selected_scenario, href, current_value):
+        categories = provider.get_categories(selected_scenario)
 
         selected_from_url = None
         if href:
@@ -107,11 +108,12 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
         Output('subcategory-dropdown', 'options'),
         Output('subcategory-dropdown', 'value'),
         Input('category-dropdown', 'value'),
+        Input('scenario-chart-dropdown', 'value'),
         State("url", "href"),
         State("subcategory-dropdown", "value")
     )
-    def update_subcategory_options(category, href, current_value):
-        subcategories = provider.get_subcategories(category)
+    def update_subcategory_options(category, selected_scenario, href, current_value):
+        subcategories = provider.get_subcategories(category, selected_scenario)
         legacy_default_labels = {
             "Domestic CO2 Emissions by Sector",
             "Domestic CO₂ Emissions by Sector",

@@ -96,20 +96,32 @@ class SQLDataProvider:
             select(Scenario.name).order_by(Scenario.name)
         ).all()
         return [name for (name,) in rows]
-    def get_categories(self):
-        rows = self.session.execute(
-            select(Table.category).distinct().order_by(Table.category)
-        ).all()
+    def get_categories(self, scenario_name=None):
+        query = select(Table.category).distinct()
+        if scenario_name:
+            query = (
+                query
+                .join(Series, Series.table_id == Table.id)
+                .join(Value, Value.series_id == Series.id)
+                .join(Scenario, Scenario.id == Value.scenario_id)
+                .where(Scenario.name == scenario_name)
+            )
+        rows = self.session.execute(query.order_by(Table.category)).all()
         return [cat for (cat,) in rows]
-    def get_subcategories(self, category_label):
+    def get_subcategories(self, category_label, scenario_name=None):
         if not category_label:
             return []
 
-        rows = self.session.execute(
-            select(Table.title)
-            .where(Table.category == category_label)
-            .order_by(Table.title)
-        ).all()
+        query = select(Table.title).where(Table.category == category_label)
+        if scenario_name:
+            query = (
+                query
+                .join(Series, Series.table_id == Table.id)
+                .join(Value, Value.series_id == Series.id)
+                .join(Scenario, Scenario.id == Value.scenario_id)
+                .where(Scenario.name == scenario_name)
+            )
+        rows = self.session.execute(query.distinct().order_by(Table.title)).all()
         return [title for (title,) in rows]
     def get_table_id(self, table_title, category_label):
         row = self.session.execute(

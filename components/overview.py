@@ -33,6 +33,7 @@ def overview_layout():
                 html.Label("Scenario", className="control-label"),
                 dcc.Dropdown(
                     id='scenario-dropdown',
+                    clearable=False,
                     persistence=True,
                     persistence_type='session'
                 )
@@ -49,6 +50,7 @@ def overview_layout():
                 html.Label("Start Year", className="control-label"),
                 dcc.Dropdown(
                     id='start-year-dropdown',
+                    clearable=False,
                     options=[{'label': str(year), 'value': year} for year in range(start_year, end_year + 1)],
                     value=default_start_year,
                     persistence=True,
@@ -59,6 +61,7 @@ def overview_layout():
                 html.Label("End Year", className="control-label"),
                 dcc.Dropdown(
                     id='end-year-dropdown',
+                    clearable=False,
                     options=[{'label': str(year), 'value': year} for year in range(start_year, end_year + 1)],
                     value=default_end_year,
                     persistence=True,
@@ -69,6 +72,7 @@ def overview_layout():
                 html.Label("Metric", className="control-label"),
                 dcc.Dropdown(
                     id='metric-dropdown',
+                    clearable=False,
                     options=['FEC', 'Import', 'Renewable'],
                     value=overview_metric,
                     persistence=True,
@@ -79,6 +83,7 @@ def overview_layout():
                 html.Label("Chart Type", className="control-label"),
                 dcc.Dropdown(
                     id='chart-type-overview-dropdown',
+                    clearable=False,
                     options= {'bar': 'Bar', 'pie': 'Pie'},
                     value=overview_chart_type,
                     persistence=True,

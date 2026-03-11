@@ -33,6 +33,7 @@ def sankey_layout ():
                 html.Label("Scenario"),
                 dcc.Dropdown(
                     id='scenario-sankey-dropdown',
+                    clearable=False,
                     persistence=True,
                     persistence_type='session',
                     # options= [{'label': s, 'value': s} for s in scenarios],
@@ -43,6 +44,7 @@ def sankey_layout ():
                 html.Label("Title"),
                 dcc.Dropdown(
                     id="sankey_title_dropdown",
+                    clearable=False,
                     options=[
                         {'label': 'Primary Energy to Demand detailed', 'value': 0},
                         {'label': 'Primary Energy to Final Energy', 'value': 1}

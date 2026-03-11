@@ -35,6 +35,7 @@ def compare_charts_layout():
                         html.Label("Compare Scenario", className="control-label"),
                         dcc.Dropdown(
                             id='compare-scenario-dropdown',
+                            clearable=False,
                             persistence=True,
                             persistence_type='session',
                             # options=[{'label': s, 'value': s} for s in scenarios],
