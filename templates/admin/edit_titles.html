@@ -32,6 +32,7 @@
                     </div>
                     <div class="col-md-9">
                         <input type="hidden" name="table_id" value="{{ group.table.id }}">
+                        <input type="hidden" name="original_table_title" value="{{ group.table.title or group.table.name }}">
                         <input type="text" name="table_title" value="{{ group.table.title }}" class="form-control">
                     </div>
                 </div>
@@ -52,6 +53,8 @@
                                 <td>{{ s.name }}</td>
                                 <td>
                                     <input type="hidden" name="series_id" value="{{ s.id }}">
+                                    <input type="hidden" name="original_series_title" value="{{ s.title or s.name }}">
+                                    <input type="hidden" name="original_series_color" value="{{ s.color or '#cccccc' }}">
                                     <input type="text" name="series_title" value="{{ s.title }}" class="form-control form-control-sm">
                                 </td>
                                 <td>

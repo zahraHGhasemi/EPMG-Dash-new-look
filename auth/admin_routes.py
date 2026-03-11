@@ -345,26 +345,79 @@ def study_scenarios_page():
 def edit_titles():
     if request.method == "POST":
         try:
-            # process the submitted form
             table_updates = request.form.getlist("table_title")
             table_ids = request.form.getlist("table_id")
-            for tid, new_title in zip(table_ids, table_updates):
-                table = Table.query.get(int(tid))
-                if table:
-                    table.title = new_title.strip() or table.name  # fallback to name if empty
+            original_table_titles = request.form.getlist("original_table_title")
+            changed_table_ids = []
+            changed_table_titles = {}
+
+            for tid, new_title, original_title in zip(table_ids, table_updates, original_table_titles):
+                normalized_new_title = (new_title or "").strip()
+                normalized_original_title = (original_title or "").strip()
+                if normalized_new_title != normalized_original_title:
+                    table_id = int(tid)
+                    changed_table_ids.append(table_id)
+                    changed_table_titles[table_id] = normalized_new_title
+
+            if changed_table_ids:
+                changed_tables = {
+                    table.id: table
+                    for table in Table.query.filter(Table.id.in_(changed_table_ids)).all()
+                }
+                for table_id in changed_table_ids:
+                    table = changed_tables.get(table_id)
+                    if table:
+                        table.title = changed_table_titles[table_id] or table.name
 
             series_updates = request.form.getlist("series_title")
             series_ids = request.form.getlist("series_id")
+            original_series_titles = request.form.getlist("original_series_title")
             series_color_updates = request.form.getlist("series_color")
+            original_series_colors = request.form.getlist("original_series_color")
             if len(series_color_updates) < len(series_ids):
                 series_color_updates += [None] * (len(series_ids) - len(series_color_updates))
-            for sid, new_title, new_color in zip(series_ids, series_updates, series_color_updates):
-                series = Series.query.get(int(sid))
-                if series:
-                    series.title = new_title.strip() or series.name
-                    validated_color = _validate_series_color(new_color)
-                    if validated_color is not None:
-                        series.color = validated_color
+            if len(original_series_titles) < len(series_ids):
+                original_series_titles += [""] * (len(series_ids) - len(original_series_titles))
+            if len(original_series_colors) < len(series_ids):
+                original_series_colors += [None] * (len(series_ids) - len(original_series_colors))
+
+            changed_series_ids = []
+            changed_series_values = {}
+
+            for sid, new_title, original_title, new_color, original_color in zip(
+                series_ids,
+                series_updates,
+                original_series_titles,
+                series_color_updates,
+                original_series_colors,
+            ):
+                normalized_new_title = (new_title or "").strip()
+                normalized_original_title = (original_title or "").strip()
+                validated_color = _validate_series_color(new_color)
+                validated_original_color = _validate_series_color(original_color)
+
+                if (
+                    normalized_new_title != normalized_original_title
+                    or validated_color != validated_original_color
+                ):
+                    series_id = int(sid)
+                    changed_series_ids.append(series_id)
+                    changed_series_values[series_id] = {
+                        "title": normalized_new_title,
+                        "color": validated_color,
+                    }
+
+            if changed_series_ids:
+                changed_series = {
+                    series.id: series
+                    for series in Series.query.filter(Series.id.in_(changed_series_ids)).all()
+                }
+                for series_id in changed_series_ids:
+                    series = changed_series.get(series_id)
+                    if series:
+                        series.title = changed_series_values[series_id]["title"] or series.name
+                        if changed_series_values[series_id]["color"] is not None:
+                            series.color = changed_series_values[series_id]["color"]
 
             db.session.commit()
             flash("Titles and colors updated successfully!", "success")
