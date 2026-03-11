@@ -11,7 +11,7 @@ import pandas as pd
 import colorsys
 from data_provider.sql_data import SQLDataProvider
 from urllib.parse import urlparse, parse_qs
-from auth.models import db
+from auth.models import db, normalize_series_color
 from utils.dashboard_settings import get_dashboard_settings
 
 session = db.session
@@ -142,7 +142,7 @@ def prepare_service_data(df_srv):
 
     df_srv_filtered['target'] = SRV
     return df_srv_filtered[['seriesTitle', 'Value', 'target']]
-def energy_loss_calculation(df, df_SYS_TPED, df_FEC_feul):
+def energy_loss_calculation(df, df_SYS_TPED):
     ls_feul = df['seriesTitle'].unique().tolist()
     df_SYS_TPED['target'] = LOSS
     # if ELECTRICITY_GENERATION in ls_feul:
@@ -200,7 +200,6 @@ def energy_loss_calculation(df, df_SYS_TPED, df_FEC_feul):
     return df_SYS_TPED[['seriesTitle', 'Value', 'target']]
 
 def primary_to_final_energy_sankey(scenario, year, provider = SQLDataProvider(session=session)):
-    
     table_id_SYS_TPED = provider.get_table_id_by_name('SYS_TPED')
     df_SYS_TPED = provider.get_filtered_df(table_id_SYS_TPED, scenario, [year, year])
     table_id_FEC_feul = provider.get_table_id_by_name("SYS_FEC_Fuel")
@@ -218,6 +217,8 @@ def primary_to_final_energy_sankey(scenario, year, provider = SQLDataProvider(se
     df_rsd = provider.get_filtered_df(table_id_rsd, scenario, [year,year])
     table_id_tra = provider.get_table_id_by_name("TRA_FEC")
     df_tra = provider.get_filtered_df(table_id_tra, scenario, [year,year])
+    list_table_ids = [table_id_SYS_TPED, table_id_FEC_feul, table_id_PWR_Gen_ELCC,
+                      table_id_agr, table_id_ind, table_id_srv, table_id_rsd, table_id_tra]
 
     df_PWR_Gen_ELCC = prepare_elec_gen_data(df_PWR_Gen_ELCC)
     df_rsd = prepare_residential_data(df_rsd)
@@ -225,10 +226,10 @@ def primary_to_final_energy_sankey(scenario, year, provider = SQLDataProvider(se
     df_ind = prepare_industry_data(df_ind)
     df_agr = prepare_agriculture_data(df_agr)
     df_srv = prepare_service_data(df_srv)
-    total_sectors = df_rsd['Value'].sum() + df_tra['Value'].sum() + df_ind['Value'].sum() + df_agr['Value'].sum() + df_srv['Value'].sum()
-    table_id_FEC_sector = provider.get_table_id_by_name("SYS_FEC_Sector")
-    df_FEC_sector = provider.get_filtered_df(table_id_FEC_sector, scenario, [year,year])
-    total_sector_direct = df_FEC_sector['Value'].sum()
+    # total_sectors = df_rsd['Value'].sum() + df_tra['Value'].sum() + df_ind['Value'].sum() + df_agr['Value'].sum() + df_srv['Value'].sum()
+    # table_id_FEC_sector = provider.get_table_id_by_name("SYS_FEC_Sector")
+    # df_FEC_sector = provider.get_filtered_df(table_id_FEC_sector, scenario, [year,year])
+    # total_sector_direct = df_FEC_sector['Value'].sum()
     # print( df_agr['seriesTitle'].unique(), df_agr['target'].unique(), 'agr************')
     # print( df_ind['seriesTitle'].unique(), df_ind['target'].unique(), 'ind************')
     # print( df_srv['seriesTitle'].unique(), df_srv['target'].unique(), 'srv************')
@@ -237,7 +238,7 @@ def primary_to_final_energy_sankey(scenario, year, provider = SQLDataProvider(se
 
     # print(total_sectors, 'total_sectors', total_sector_direct, 'total_sector_direct************')
     df_all = pd.concat([df_PWR_Gen_ELCC, df_rsd, df_tra, df_ind, df_agr, df_srv], ignore_index=True)
-    df_SYS_TPED = energy_loss_calculation(df_all, df_SYS_TPED, df_FEC_feul)
+    df_SYS_TPED = energy_loss_calculation(df_all, df_SYS_TPED)
     df_all = pd.concat([df_all, df_SYS_TPED], ignore_index=True)
     sum_out_elec_gen = df_all[df_all['seriesTitle'] == ELECTRICITY_GENERATION]['Value'].sum()
     sum_in_elec_gen = df_all[df_all['target'] == ELECTRICITY_GENERATION]['Value'].sum()
@@ -266,14 +267,14 @@ def primary_to_final_energy_sankey(scenario, year, provider = SQLDataProvider(se
          })
         df_all = pd.concat([df_all, new_row], ignore_index=True)
     elif sum_in_h2 ==0:
-        return df_all
+        return df_all, list_table_ids
     else:
         new_row = pd.DataFrame({
         'seriesTitle': [HYDROGEN + ' source'],'Value': [-1 *h2_loss], 'target': [HYDROGEN]
          })
         df_all = pd.concat([df_all, new_row], ignore_index=True)
         print("Hydrogen generation data inconsistency: more hydrogen consumed than generated. Please check the data.")
-    return df_all
+    return df_all, list_table_ids
     
 
 
@@ -322,6 +323,7 @@ def prepare_sankey_data_SEAI(scenario, year, provider = SQLDataProvider(session=
     table_id_SYS_TPED = provider.get_table_id_by_name('SYS_TPED')
     table_id_FEC_Sector = provider.get_table_id_by_name("SYS_FEC_Sector")
     table_id_renewable = provider.get_table_id_by_name('PWR_Gen-ELCC')
+    list_table_ids = [table_id_SYS_TPED, table_id_FEC_Sector, table_id_renewable]
     # print(table_id_SYS_TPED, table_id_FEC_Sector, table_id_renewable, 'table_ids************')
     df_SYS_TPED = provider.get_filtered_df(table_id_SYS_TPED, scenario, [year, year])
     df_FEC_Sector = provider.get_filtered_df(table_id_FEC_Sector, scenario, [year,year])
@@ -367,7 +369,7 @@ def prepare_sankey_data_SEAI(scenario, year, provider = SQLDataProvider(session=
     df_filtered = pd.concat([df_filtered, new_row], ignore_index=True)
     sum_in = df_filtered.loc[df_filtered['seriesTitle'] == "Primary Energy", 'Value'].sum()
     sum_out = df_filtered.loc[df_filtered['target'] == "Primary Energy", 'Value'].sum()
-    return df_filtered
+    return df_filtered, list_table_ids
 def pastel_continuous_palette(n, s=0.35, v=0.95):
     
     colors = []
@@ -377,7 +379,7 @@ def pastel_continuous_palette(n, s=0.35, v=0.95):
         colors.append(f'rgb({int(r*255)}, {int(g*255)}, {int(b*255)})')
     return colors
 
-def link_colors(df_1, df_2):
+def link_colors(df_1, df_2, series_color_map):
     level1 = df_1['seriesTitle'].unique().tolist()  
     level2 = df_1['target'].unique().tolist()       
     level3 = df_2['seriesTitle'].unique().tolist()  
@@ -387,7 +389,11 @@ def link_colors(df_1, df_2):
     node_indices = {name: i for i, name in enumerate(nodes)}
 
     n = len(nodes)
-    node_colors = pastel_continuous_palette(n)
+    fallback_colors = pastel_continuous_palette(n)
+    node_colors = []
+    for i, node in enumerate(nodes):
+        color = normalize_series_color(series_color_map.get(node))
+        node_colors.append(color if color else fallback_colors[i])
     
     return nodes, node_indices, node_colors
 def compute_node_totals(df, nodes):
@@ -494,15 +500,17 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
         if title == 0:
             # df_all = prepare_sankey_data_energy_source_to_sector(scenario, year[0], provider = provider)
             # df_all_end = prepare_sankey_data_energy_source_to_sector(scenario, year[1], provider = provider)
-            df_all = primary_to_final_energy_sankey(scenario, year[0], provider = provider)
-            df_all_end = primary_to_final_energy_sankey(scenario, year[1], provider = provider)
+            df_all, list_table_ids = primary_to_final_energy_sankey(scenario, year[0], provider = provider)
+            df_all_end, list_table_ids_end = primary_to_final_energy_sankey(scenario, year[1], provider = provider)
 
         elif title == 1:
-            df_all = prepare_sankey_data_SEAI(scenario, year[0], provider = provider)
-            df_all_end = prepare_sankey_data_SEAI(scenario, year[1], provider = provider)
+            df_all, list_table_ids = prepare_sankey_data_SEAI(scenario, year[0], provider = provider)
+            df_all_end, list_table_ids_end = prepare_sankey_data_SEAI(scenario, year[1], provider = provider)
                 # Nodes
         
-        node, node_indices, node_colors = link_colors(df_all, df_all_end)
+        series_color_map = provider.get_series_color_map_by_list_titles(list_table_ids + list_table_ids_end)
+        print(series_color_map, 'series_color_map************')
+        node, node_indices, node_colors = link_colors(df_all, df_all_end, series_color_map)
         # df_test =primary_to_final_energy_sankey(scenario, year[0], provider = provider)
         # print(df_test['seriesTitle'].unique(), 'seriesTitle************')  
         # print(df_test['target'].unique(), 'target************')

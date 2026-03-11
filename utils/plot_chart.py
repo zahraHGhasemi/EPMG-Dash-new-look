@@ -64,8 +64,16 @@ def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = 
         return fig
     
 
-def plot_pie_chart(df, year, title):
-    fig = px.pie(df, values='Value', names='seriesTitle', title=f'{title} {year}', hole=0.3)
+def plot_pie_chart(df, year, title, color_map=None):
+    fig = px.pie(
+        df,
+        values='Value',
+        names='seriesTitle',
+        title=f'{title} {year}',
+        hole=0.3,
+        color='seriesTitle',
+        color_discrete_map=color_map,
+    )
 
     # fig.update_layout(showlegend=False)
     
@@ -107,7 +115,7 @@ def plot_bar_chart(df, year, title):
 
 from plotly.subplots import make_subplots
 
-def plot_two_pie_charts_px(df1, year1, df2, year2, title,label='Value'):
+def plot_two_pie_charts_px(df1, year1, df2, year2, title, label='Value', color_map=None):
     # Create the subplots layout
     fig = make_subplots(
         rows=1, cols=2,
@@ -116,8 +124,22 @@ def plot_two_pie_charts_px(df1, year1, df2, year2, title,label='Value'):
     )
 
     # Create pie charts using Plotly Express
-    pie1 = px.pie(df1, values='Value', names='seriesTitle', hole=0.3)
-    pie2 = px.pie(df2, values='Value', names='seriesTitle', hole=0.3)
+    pie1 = px.pie(
+        df1,
+        values='Value',
+        names='seriesTitle',
+        hole=0.3,
+        color='seriesTitle',
+        color_discrete_map=color_map,
+    )
+    pie2 = px.pie(
+        df2,
+        values='Value',
+        names='seriesTitle',
+        hole=0.3,
+        color='seriesTitle',
+        color_discrete_map=color_map,
+    )
 
     # Add traces from px.pie to the combined figure
     for trace in pie1.data:
@@ -169,7 +191,7 @@ def plot_two_pie_charts_px(df1, year1, df2, year2, title,label='Value'):
 
     return fig
 
-def plot_two_bar_charts_px(df1, year1, df2, year2, title, label):
+def plot_two_bar_charts_px(df1, year1, df2, year2, title, label, color_map=None):
     df1 = df1.copy()
     df2 = df2.copy()
     df1["Year"] = year1
@@ -190,7 +212,7 @@ def plot_two_bar_charts_px(df1, year1, df2, year2, title, label):
         color="seriesTitle",
         title=title,
         text="Value",
-        color_discrete_sequence=px.colors.qualitative.Light24
+        color_discrete_map=color_map,
     )
 
     # Update bar and layout settings

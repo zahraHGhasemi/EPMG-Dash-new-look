@@ -5,6 +5,7 @@ import plotly.express as px
 from data_provider.sql_data import SQLDataProvider
 from utils.plot_chart import plot_pie_chart, plot_bar_chart, plot_two_pie_charts_px, plot_two_bar_charts_px
 from utils.dashboard_settings import get_dashboard_settings
+from auth.models import normalize_series_color, pastel_continuous_palette
 def register_overview_callbacks(app, provider):
     @app.callback(
         Output('scenario-dropdown', 'options'),
@@ -62,12 +63,14 @@ def register_overview_callbacks(app, provider):
         table_id_SYS_NRG_Import = provider.get_table_id_by_name('SYS_NRG-Import')
         table_id_PWR_Gen_ELCC = provider.get_table_id_by_name('PWR_Gen-ELCC')
         label = "Value"
+        table_id_for_colors = None
         if metric == 'FEC':
             data_base = provider.get_filtered_df(table_id_SYS_FEC_Fuel, scenario, [year_start, year_start])
             data_selected = provider.get_filtered_df(table_id_SYS_FEC_Fuel, scenario, [year_end, year_end])
             # data_base = data_melted_base[data_melted_base['tableName'] == 'SYS_FEC_Fuel']
             # data_selected = all_data_melted[all_data_melted['tableName'] == 'SYS_FEC_Fuel']
             label = provider.get_labels(table_id_SYS_FEC_Fuel)[0]
+            table_id_for_colors = table_id_SYS_FEC_Fuel
         
         elif metric == 'Import':
             data_base = provider.get_filtered_df(table_id_SYS_NRG_Import, scenario, [year_start, year_start])
@@ -75,6 +78,7 @@ def register_overview_callbacks(app, provider):
             # data_base = data_melted_base[data_melted_base['tableName'] == 'SYS_NRG-Import']
             # data_selected = all_data_melted[all_data_melted['tableName'] == 'SYS_NRG-Import']
             label = provider.get_labels(table_id_SYS_NRG_Import)[0]
+            table_id_for_colors = table_id_SYS_NRG_Import
 
         elif metric == 'Renewable':
             data_base = provider.get_filtered_df(table_id_PWR_Gen_ELCC, scenario, [year_start, year_start])
@@ -82,13 +86,21 @@ def register_overview_callbacks(app, provider):
             data_base = data_base[data_base['seriesName'].isin(renewable_list)]
             data_selected = data_selected[data_selected['seriesName'].isin(renewable_list)]
             label = provider.get_labels(table_id_PWR_Gen_ELCC)[0]
+            table_id_for_colors = table_id_PWR_Gen_ELCC
             # data_base = data_melted_base[(data_melted_base['tableName'] == 'PWR_Gen-ELCC')& 
             #                                     (data_melted_base['seriesName'].isin(renewable_list))]
             # data_selected = all_data_melted[(all_data_melted['tableName'] == 'PWR_Gen-ELCC')& 
             #                                    (all_data_melted['seriesName'].isin(renewable_list))]
+        color_map = provider.get_series_color_map_by_title(table_id_for_colors) if table_id_for_colors else {}
+        all_titles = list(dict.fromkeys(data_base["seriesTitle"].tolist() + data_selected["seriesTitle"].tolist()))
+        fallback = pastel_continuous_palette(len(all_titles))
+        for i, title in enumerate(all_titles):
+            color = normalize_series_color(color_map.get(title))
+            color_map[title] = color if color else fallback[i]
+
         if chart_type == 'pie':
-            fig = plot_two_pie_charts_px(data_base, year_start, data_selected, year_end, metric, label)
+            fig = plot_two_pie_charts_px(data_base, year_start, data_selected, year_end, metric, label, color_map=color_map)
         elif chart_type == 'bar':
-            fig = plot_two_bar_charts_px(data_base, year_start, data_selected, year_end, metric, label)
+            fig = plot_two_bar_charts_px(data_base, year_start, data_selected, year_end, metric, label, color_map=color_map)
 
         return fig

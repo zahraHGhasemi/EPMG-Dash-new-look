@@ -9,19 +9,11 @@ import numpy as np
 import plotly.express as px
 from dash import html, dcc
 import dash_bootstrap_components as dbc
-import colorsys
 from flask import has_request_context
 from data_provider.sql_data import SQLDataProvider
 from data_provider.dataframe_data import DataFrameProvider
+from auth.models import normalize_series_color, pastel_continuous_palette
 
-def pastel_continuous_palette(n, s=0.35, v=0.95):
-    colors = []
-    for i in range(n):
-        h = i / n
-        r, g, b = colorsys.hsv_to_rgb(h, s, v)
-        hex_color = f'#{int(r*255):02X}{int(g*255):02X}{int(b*255):02X}'
-        colors.append(hex_color)
-    return colors
 from auth.models import db
 from urllib.parse import urlparse, parse_qs
 session = db.session
@@ -79,15 +71,21 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
         # df = provider.get_filtered_df(table_id, scenario, year_range)
 
         # series = df['seriesTitle'].unique().
-        series = provider.get_series_titles(table_id)
-        default_colors = pastel_continuous_palette(len(series))
+        series_rows = provider.get_series_titles_with_colors(table_id)
+        fallback_palette = pastel_continuous_palette(len(series_rows))
+        default_colors = []
+        for i, row in enumerate(series_rows):
+            color = normalize_series_color(row["color"])
+            if not color:
+                color = fallback_palette[i]
+            default_colors.append(color)
 
         children_colors = []
-        for i, s in enumerate(series):
+        for i, row in enumerate(series_rows):
             children_colors.append(html.Div([
-                    html.Label(f"{s}"),
-                    dbc.Input(
-                        id={'type': 'series-color-input', 'index': s},
+                    html.Label(f"{row['title']}"),
+                dbc.Input(
+                        id={'type': 'series-color-input', 'index': row["id"]},
                         type='color',
                         value=default_colors[i % len(default_colors)],
                         style={'width': '60px', 'margin-right': '10px'}
@@ -100,7 +98,7 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
                 })
             )
         return children_colors
-            
+
     @app.callback(
         Output('compare-chart', 'figure'),
         Input('subcategory-dropdown', 'value'),
@@ -123,8 +121,11 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
         # df = get_filtered_df(table_id, scenario, year_range, df_override=df_user)
         table_id = provider.get_table_id(table_name, category)
         df = provider.get_filtered_df(table_id, scenario, year_range)
-        series_names = provider.get_series_titles(table_id)
-        color_map = {series_names[i]: color_values[i] for i in range(len(series_names))}
+        series_rows = provider.get_series_titles_with_colors(table_id)
+        color_map = {
+            row["title"]: color_values[i]
+            for i, row in enumerate(series_rows[:len(color_values)])
+        }
         df['label'] = unit
         if compare_value:
             # df_compare = get_filtered_df(table_id, compare_scenario, year_range, df_override=df_user)

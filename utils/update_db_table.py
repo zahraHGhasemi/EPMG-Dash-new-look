@@ -1,4 +1,14 @@
-from auth.models import db, Table, Scenario, Series, Value, Year
+from auth.models import (
+    db,
+    Table,
+    Scenario,
+    Series,
+    Value,
+    Year,
+    normalize_series_color,
+    pastel_continuous_palette,
+    next_available_series_color,
+)
 # from utils.config_loader import chartsTitle, seriesTitle
 import pandas as pd
 
@@ -66,24 +76,47 @@ def upsert_series(df, table_map, session):
     )
 
     existing = session.execute(
-        select(Series.name, Series.table_id, Series.id)
+        select(Series.name, Series.table_id, Series.id, Series.color)
     ).all()
 
     existing_map = {
         (name, table_id): id_
-        for name, table_id, id_ in existing
+        for name, table_id, id_, _ in existing
     }
+    used_colors_by_table = {}
+    for _, table_id, _, color in existing:
+        normalized = normalize_series_color(color)
+        if normalized:
+            used_colors_by_table.setdefault(table_id, set()).add(normalized)
 
     missing = []
+    missing_by_table = {}
     for table_name, series_name in pairs:
         table_id = table_map[table_name]
         key = (series_name, table_id)
         if key not in existing_map:
-            missing.append({
+            row = {
                 "name": series_name,
                 "title": series_name,  # placeholder
-                "table_id": table_id
-            })
+                "table_id": table_id,
+            }
+            missing.append(row)
+            missing_by_table.setdefault(table_id, []).append(row)
+
+    for table_id, rows_for_table in missing_by_table.items():
+        used_colors = used_colors_by_table.setdefault(table_id, set())
+
+        if not used_colors:
+            palette = pastel_continuous_palette(len(rows_for_table))
+            for row, color in zip(rows_for_table, palette):
+                row["color"] = color
+                used_colors.add(color)
+            continue
+
+        for row in rows_for_table:
+            new_color = next_available_series_color(used_colors)
+            row["color"] = new_color
+            used_colors.add(new_color)
 
     if missing:
         session.bulk_insert_mappings(Series, missing)

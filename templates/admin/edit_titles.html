@@ -18,7 +18,7 @@
   {% endif %}
 {% endwith %}
 <div class="container mt-4">
-    <h2>Edit Table and Series Titles</h2>
+    <h2>Edit Table and Series Titles and Colours</h2>
     <form method="POST">
         {% for group in grouped_titles %}
         <div class="card mb-4">
@@ -42,6 +42,7 @@
                         <tr>
                             <th style="width: 40%;">Series Name</th>
                             <th>Series Title</th>
+                            <th style="width: 180px;">Default Color</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -53,11 +54,20 @@
                                     <input type="hidden" name="series_id" value="{{ s.id }}">
                                     <input type="text" name="series_title" value="{{ s.title }}" class="form-control form-control-sm">
                                 </td>
+                                <td>
+                                    <input
+                                        type="color"
+                                        name="series_color"
+                                        value="{{ s.color or '#cccccc' }}"
+                                        class="form-control form-control-color"
+                                        title="Choose series color"
+                                    >
+                                </td>
                             </tr>
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="2" class="text-muted">No series linked to this table.</td>
+                                <td colspan="3" class="text-muted">No series linked to this table.</td>
                             </tr>
                         {% endif %}
                     </tbody>

@@ -4,8 +4,18 @@ from flask_login import login_required, current_user
 from flask import request, redirect, flash, url_for
 import pandas as pd
 import os
+import re
 from data_provider.sql_data import SQLDataProvider
-from auth.models import Table, db, Scenario, StudyScenario, Study, Series, StudyAbout
+from auth.models import (
+    Table,
+    db,
+    Scenario,
+    StudyScenario,
+    Study,
+    Series,
+    StudyAbout,
+    normalize_series_color,
+)
 from utils.update_db_table import process_uploaded_csv
 from utils.dashboard_settings import get_dashboard_settings, save_dashboard_settings
 from config.constants import CATEGORY_DICT
@@ -15,6 +25,18 @@ admin_bp = Blueprint(
     __name__,
     url_prefix="/admin"
 )
+
+HEX_COLOR_RE = re.compile(r"^#[0-9a-f]{6}$")
+
+
+def _validate_series_color(value: str | None) -> str | None:
+    normalized = normalize_series_color(value)
+    if normalized is None:
+        return None
+    if not HEX_COLOR_RE.fullmatch(normalized):
+        raise ValueError(f"Invalid color '{value}'. Use #RRGGBB.")
+    return normalized
+
 
 def admin_required(func):
     @wraps(func)
@@ -322,24 +344,33 @@ def study_scenarios_page():
 @admin_required
 def edit_titles():
     if request.method == "POST":
-        # process the submitted form
-        table_updates = request.form.getlist("table_title")
-        table_ids = request.form.getlist("table_id")
-        for tid, new_title in zip(table_ids, table_updates):
-            table = Table.query.get(int(tid))
-            if table:
-                table.title = new_title.strip() or table.name  # fallback to name if empty
-        db.session.commit()
+        try:
+            # process the submitted form
+            table_updates = request.form.getlist("table_title")
+            table_ids = request.form.getlist("table_id")
+            for tid, new_title in zip(table_ids, table_updates):
+                table = Table.query.get(int(tid))
+                if table:
+                    table.title = new_title.strip() or table.name  # fallback to name if empty
 
-        series_updates = request.form.getlist("series_title")
-        series_ids = request.form.getlist("series_id")
-        for sid, new_title in zip(series_ids, series_updates):
-            series = Series.query.get(int(sid))
-            if series:
-                series.title = new_title.strip() or series.name
-        db.session.commit()
+            series_updates = request.form.getlist("series_title")
+            series_ids = request.form.getlist("series_id")
+            series_color_updates = request.form.getlist("series_color")
+            if len(series_color_updates) < len(series_ids):
+                series_color_updates += [None] * (len(series_ids) - len(series_color_updates))
+            for sid, new_title, new_color in zip(series_ids, series_updates, series_color_updates):
+                series = Series.query.get(int(sid))
+                if series:
+                    series.title = new_title.strip() or series.name
+                    validated_color = _validate_series_color(new_color)
+                    if validated_color is not None:
+                        series.color = validated_color
 
-        flash("Titles updated successfully!", "success")
+            db.session.commit()
+            flash("Titles and colors updated successfully!", "success")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Could not save edits: {e}", "danger")
         return redirect("/admin/edit_titles")
 
     # GET: show tables with their related series grouped together

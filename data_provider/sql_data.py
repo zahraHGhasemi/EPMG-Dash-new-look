@@ -157,6 +157,34 @@ class SQLDataProvider:
             .order_by(Series.title)
         ).all()
         return [title for (title,) in rows]
+    def get_series_titles_with_colors(self, table_id):
+        rows = self.session.execute(
+            select(Series.id, Series.title, Series.color)
+            .where(Series.table_id == table_id)
+            .order_by(Series.title)
+        ).all()
+        return [{"id": series_id, "title": title, "color": color} for series_id, title, color in rows]
+    def get_series_color_map_by_title(self, table_id):
+        rows = self.session.execute(
+            select(Series.title, Series.color)
+            .where(Series.table_id == table_id)
+            .where(Series.color.is_not(None))
+        ).all()
+        return {title: color for title, color in rows if title and color}
+    def get_series_color_map_by_list_titles(self, list_table_ids=None):
+        rows = self.session.execute(
+            select(Series.title, Series.color)
+            .where(
+                Series.color.is_not(None),
+                Series.table_id.in_(list_table_ids)
+            )
+            .order_by(Series.table_id, Series.id)
+        ).all()
+        color_map = {}
+        for title, color in rows:
+            if title and color and title not in color_map:
+                color_map[title] = color
+        return color_map
     def get_table_id_by_name(self, table_name):
         row = self.session.execute(
             select(Table.id)
