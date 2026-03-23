@@ -180,6 +180,7 @@ def inject_studies():
     return {
         "recent_studies": provider.get_recent_studies(),
         "archive_studies": provider.get_archive_studies(),
+        "ongoing_studies": provider.get_ongoing_studies()
     }
 @app.route("/")
 def home():

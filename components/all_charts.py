@@ -95,33 +95,33 @@ def options_layout():
             ], width=6)
         ])
     ])
-def all_charts_layout():
-    return (
-        dbc.Container([
-            options_layout(),
-            dbc.Row([
-                dbc.Col(html.Hr(), width=10),
-                 dbc.Col([
-                    dbc.Button(
-                        "⬇️ Download CSV",
-                        id="btn-download",
-                        color="primary",
-                        className="ms-2"
-                    ),
-                    dcc.Download(id="download-dataframe-csv")
-                ], width="auto"),
-            ], align="center", className="mb-3"),
+# def all_charts_layout():
+#     return (
+#         dbc.Container([
+#             options_layout(),
+#             dbc.Row([
+#                 dbc.Col(html.Hr(), width=10),
+#                  dbc.Col([
+#                     dbc.Button(
+#                         "⬇️ Download CSV",
+#                         id="btn-download",
+#                         color="primary",
+#                         className="ms-2"
+#                     ),
+#                     dcc.Download(id="download-dataframe-csv")
+#                 ], width="auto"),
+#             ], align="center", className="mb-3"),
             
-            dbc.Row([
-                dbc.Col(
-                    dbc.Spinner(
-                        dcc.Graph(id='selected-graph', style={'height': '600px'}),
-                        color="primary",      # spinner color
-                        size="lg",            # spinner size
-                        type="border"         # or "grow"
-                    ),
-                    width=12
-                )
-            ])
-        ])        
-    )
+#             dbc.Row([
+#                 dbc.Col(
+#                     dbc.Spinner(
+#                         dcc.Graph(id='selected-graph', style={'height': '600px'}),
+#                         color="primary",      # spinner color
+#                         size="lg",            # spinner size
+#                         type="border"         # or "grow"
+#                     ),
+#                     width=12
+#                 )
+#             ])
+#         ])        
+#     )

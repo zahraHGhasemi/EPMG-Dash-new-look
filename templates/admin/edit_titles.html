@@ -19,11 +19,47 @@
 {% endwith %}
 <div class="container mt-4">
     <h2>Edit Table and Series Titles and Colours</h2>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin.edit_titles') }}" id="table-selector-form">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label">Sector</label>
+                        <select name="category" class="form-select" id="category-select">
+                            {% for category in categories %}
+                            <option value="{{ category }}" {% if category == selected_category %}selected{% endif %}>
+                                {{ category_dict.get(category, category) }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Subsector (Table)</label>
+                        <select name="table_id" class="form-select" id="table-select">
+                            {% for table in tables_for_category %}
+                            <option value="{{ table.id }}" {% if selected_table and table.id == selected_table.id %}selected{% endif %}>
+                                {{ table.title or table.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-outline-primary w-100">Load</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if selected_table %}
     <form method="POST">
-        {% for group in grouped_titles %}
+        <input type="hidden" name="selected_category" value="{{ selected_category }}">
+        <input type="hidden" name="selected_table_id" value="{{ selected_table.id }}">
+
         <div class="card mb-4">
             <div class="card-header">
-                <strong>Table:</strong> {{ group.table.name }}
+                <strong>Table:</strong> {{ selected_table.name }}
             </div>
             <div class="card-body">
                 <div class="row g-2 align-items-center mb-3">
@@ -31,9 +67,24 @@
                         <label class="form-label mb-0"><strong>Table Title</strong></label>
                     </div>
                     <div class="col-md-9">
-                        <input type="hidden" name="table_id" value="{{ group.table.id }}">
-                        <input type="hidden" name="original_table_title" value="{{ group.table.title or group.table.name }}">
-                        <input type="text" name="table_title" value="{{ group.table.title }}" class="form-control">
+                        <input type="hidden" name="original_table_title" value="{{ selected_table.title or selected_table.name }}">
+                        <input type="text" name="table_title" value="{{ selected_table.title or selected_table.name }}" class="form-control">
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label d-block"><strong>Series Update Scope</strong></label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="propagate_series" id="propagate-table-only" value="table_only" checked>
+                        <label class="form-check-label" for="propagate-table-only">
+                            Update only the selected table
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="propagate_series" id="propagate-global" value="global">
+                        <label class="form-check-label" for="propagate-global">
+                            Also apply changed series titles and colours to all rows with the same series name
+                        </label>
                     </div>
                 </div>
 
@@ -41,21 +92,21 @@
                 <table class="table table-bordered table-sm mb-0">
                     <thead>
                         <tr>
-                            <th style="width: 40%;">Series Name</th>
+                            <th style="width: 35%;">Series Name</th>
                             <th>Series Title</th>
                             <th style="width: 180px;">Default Color</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% if group.series %}
-                            {% for s in group.series %}
+                        {% if selected_series %}
+                            {% for s in selected_series %}
                             <tr>
                                 <td>{{ s.name }}</td>
                                 <td>
                                     <input type="hidden" name="series_id" value="{{ s.id }}">
                                     <input type="hidden" name="original_series_title" value="{{ s.title or s.name }}">
                                     <input type="hidden" name="original_series_color" value="{{ s.color or '#cccccc' }}">
-                                    <input type="text" name="series_title" value="{{ s.title }}" class="form-control form-control-sm">
+                                    <input type="text" name="series_title" value="{{ s.title or s.name }}" class="form-control form-control-sm">
                                 </td>
                                 <td>
                                     <input
@@ -77,9 +128,27 @@
                 </table>
             </div>
         </div>
-        {% endfor %}
 
         <button type="submit" class="btn btn-primary mt-3">Save Changes</button>
     </form>
+    {% else %}
+    <div class="alert alert-info">No table is available for the selected sector.</div>
+    {% endif %}
 </div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const selectorForm = document.getElementById("table-selector-form");
+    const categorySelect = document.getElementById("category-select");
+    const tableSelect = document.getElementById("table-select");
+
+    if (!selectorForm || !categorySelect || !tableSelect) {
+        return;
+    }
+
+    categorySelect.addEventListener("change", function () {
+        tableSelect.selectedIndex = 0;
+        selectorForm.submit();
+    });
+});
+</script>
 {% endblock %}

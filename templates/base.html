@@ -55,6 +55,24 @@
                     </li>
                     {% endfor %}
                 </ul>
+                </li>
+
+                {% if current_user.is_authenticated %}
+                <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                    Ongoing Studies
+                </a>
+                <ul class="dropdown-menu">
+                    {% for study in ongoing_studies %}
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('dash_home') }}?study_id={{ study.id }}">
+                            {{ study.name }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            
+                {% endif %}
             </li>
         </ul>
 

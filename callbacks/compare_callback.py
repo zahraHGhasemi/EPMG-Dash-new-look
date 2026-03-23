@@ -12,7 +12,7 @@ import dash_bootstrap_components as dbc
 from flask import has_request_context
 from data_provider.sql_data import SQLDataProvider
 from data_provider.dataframe_data import DataFrameProvider
-from auth.models import normalize_series_color, pastel_continuous_palette
+from auth.models import Study, normalize_series_color, pastel_continuous_palette
 
 from auth.models import db
 from urllib.parse import urlparse, parse_qs
@@ -217,20 +217,33 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
         State('category-dropdown', 'value'),
         State('scenario-chart-dropdown', 'value'),
         State('year-slider', 'value'),
-        State('chart-type-dropdown', 'value'),
+        State('url', "href"),
+        State('unit-dropdown', "value"),
         prevent_initial_call=True
     )
-    def download_current_chart(n_clicks, table_name,category, scenario, year_range, chart_types):
-        df_override = None
+    def download_current_chart(n_clicks, table_name,category, scenario, year_range, href, unit):
         # if data_mode == "user" and has_request_context():
         #     df_override = get_user_df()
         
         # table_id = get_table_id(table_name,category, df_override=df_override)
         # df = get_filtered_df(table_id, scenario, year_range, df_override=df_override)
+        query = parse_qs(urlparse(href).query)
+        study_id = query.get("study_id", [None])[0]
+
+        # Read study name from study_id
+        study_name = "Unknown Study"
+        if study_id is not None:
+            study = Study.query.get(study_id)   # adjust based on your ORM/model
+            if study:
+                study_name = study.name
+        
         table_id = provider.get_table_id(table_name, category)
         df = provider.get_filtered_df(table_id, scenario, year_range)
-
-        return dcc.send_data_frame(df.to_csv, f"{table_name}_{scenario}_{year_range[0]}-{year_range[1]}.csv", index=False)
+        df = unit_detect(unit, df) if unit in dict_unit.keys() else df
+        df['label'] = unit
+        df['study'] = study_name
+        df['tableName'] = table_name
+        return dcc.send_data_frame(df.to_csv, f"{table_name}_{scenario}_{year_range[0]}-{year_range[1]}_{study_name}.csv", index=False)
             
 
 

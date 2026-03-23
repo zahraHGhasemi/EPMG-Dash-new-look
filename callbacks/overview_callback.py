@@ -6,6 +6,7 @@ from data_provider.sql_data import SQLDataProvider
 from utils.plot_chart import plot_pie_chart, plot_bar_chart, plot_two_pie_charts_px, plot_two_bar_charts_px
 from utils.dashboard_settings import get_dashboard_settings
 from auth.models import normalize_series_color, pastel_continuous_palette
+from utils.unit_handler import unit_detect
 def register_overview_callbacks(app, provider):
     @app.callback(
         Output('scenario-dropdown', 'options'),
@@ -40,36 +41,66 @@ def register_overview_callbacks(app, provider):
         else:
             value = options[0]["value"] if options else None
         return options, value
-    # def update_scenario_options(tab_value):
-    #     scenarios = sorted(provider.get_scenarios())
-    #     print(scenarios, 'scenarios in overview callback')
-    #     value = scenarios[0] if len(scenarios) > 0 else None
-    #     options = [{"label": s, "value": s} for s in scenarios]
-    #     return options, value
     
+    @app.callback(
+        Output('unit-dropdown-overview', 'options'),
+        Output('unit-dropdown-overview', 'value'),
+        Input('metric-dropdown', 'value'),
+        State('unit-dropdown-overview', 'value')
+    )
+    def update_unit(metric, current_value):
+        if metric == 'FEC':
+            table_name = 'SYS_FEC_Fuel'
+            category = 'System'
+        elif metric == 'Import':
+            table_name = 'SYS_NRG-Import'
+            category = 'System'
+        elif metric == 'Renewable':
+            table_name = 'PWR_Gen-ELCC'
+            category = 'Power'
+
+        table_id = provider.get_table_id_by_name(table_name)
+        df_unit = provider.get_labels(table_id)
+        if not df_unit:
+            return [], None
+
+        label = df_unit[0]
+        if label == "PJ":
+            options = ['PJ', 'TWh', 'ktoe']
+        elif label == "kt":
+            options = ['kt', 'Mt']
+        else:
+            options = [label]
+
+        if current_value in options:
+            return options, current_value
+        return options, options[0]
+    
+
     @app.callback(
         Output('overview-chart', 'figure'),
         Input('scenario-dropdown', 'value'),
         Input('start-year-dropdown', 'value'),
         Input('end-year-dropdown', 'value'),
         Input('metric-dropdown', 'value'),
-        Input('chart-type-overview-dropdown', 'value')
+        Input('chart-type-overview-dropdown', 'value'),
+        Input('unit-dropdown-overview', 'value')
     )
-    def update_overview_chart(scenario, year_start, year_end, metric, chart_type):
+    def update_overview_chart(scenario, year_start, year_end, metric, chart_type, unit):
         # data_melted_base = get_data_melted(scenario, [year_start, year_start])
         # all_data_melted = get_data_melted(scenario, [year_end, year_end])
         renewable_list = ['PWR-WIN-OF', "PWR-SOL","PWR-WIN-ON","PWR-BIO", "PWR-HYD", "PWR-OCE"]
         table_id_SYS_FEC_Fuel = provider.get_table_id_by_name('SYS_FEC_Fuel')
         table_id_SYS_NRG_Import = provider.get_table_id_by_name('SYS_NRG-Import')
         table_id_PWR_Gen_ELCC = provider.get_table_id_by_name('PWR_Gen-ELCC')
-        label = "Value"
+        label = unit
         table_id_for_colors = None
         if metric == 'FEC':
             data_base = provider.get_filtered_df(table_id_SYS_FEC_Fuel, scenario, [year_start, year_start])
             data_selected = provider.get_filtered_df(table_id_SYS_FEC_Fuel, scenario, [year_end, year_end])
             # data_base = data_melted_base[data_melted_base['tableName'] == 'SYS_FEC_Fuel']
             # data_selected = all_data_melted[all_data_melted['tableName'] == 'SYS_FEC_Fuel']
-            label = provider.get_labels(table_id_SYS_FEC_Fuel)[0]
+            # label = provider.get_labels(table_id_SYS_FEC_Fuel)[0]
             table_id_for_colors = table_id_SYS_FEC_Fuel
         
         elif metric == 'Import':
@@ -77,7 +108,7 @@ def register_overview_callbacks(app, provider):
             data_selected = provider.get_filtered_df(table_id_SYS_NRG_Import, scenario, [year_end, year_end])
             # data_base = data_melted_base[data_melted_base['tableName'] == 'SYS_NRG-Import']
             # data_selected = all_data_melted[all_data_melted['tableName'] == 'SYS_NRG-Import']
-            label = provider.get_labels(table_id_SYS_NRG_Import)[0]
+            # label = provider.get_labels(table_id_SYS_NRG_Import)[0]
             table_id_for_colors = table_id_SYS_NRG_Import
 
         elif metric == 'Renewable':
@@ -85,12 +116,15 @@ def register_overview_callbacks(app, provider):
             data_selected = provider.get_filtered_df(table_id_PWR_Gen_ELCC, scenario, [year_end, year_end])
             data_base = data_base[data_base['seriesName'].isin(renewable_list)]
             data_selected = data_selected[data_selected['seriesName'].isin(renewable_list)]
-            label = provider.get_labels(table_id_PWR_Gen_ELCC)[0]
+            # label = provider.get_labels(table_id_PWR_Gen_ELCC)[0]
             table_id_for_colors = table_id_PWR_Gen_ELCC
             # data_base = data_melted_base[(data_melted_base['tableName'] == 'PWR_Gen-ELCC')& 
             #                                     (data_melted_base['seriesName'].isin(renewable_list))]
             # data_selected = all_data_melted[(all_data_melted['tableName'] == 'PWR_Gen-ELCC')& 
             #                                    (all_data_melted['seriesName'].isin(renewable_list))]
+        data_base = unit_detect(label, data_base)
+        data_selected = unit_detect(label, data_selected)
+
         color_map = provider.get_series_color_map_by_title(table_id_for_colors) if table_id_for_colors else {}
         all_titles = list(dict.fromkeys(data_base["seriesTitle"].tolist() + data_selected["seriesTitle"].tolist()))
         fallback = pastel_continuous_palette(len(all_titles))

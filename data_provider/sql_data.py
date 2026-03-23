@@ -232,3 +232,5 @@ class SQLDataProvider:
         return self.get_studies_by_status("recent")
     def get_archive_studies(self):
         return self.get_studies_by_status("archive")
+    def get_ongoing_studies(self):
+        return self.get_studies_by_status("ongoing")

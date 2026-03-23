@@ -18,7 +18,6 @@ def overview_layout():
     overview_chart_type = settings["overview_chart_type"]
 
     return dbc.Container([
-    
     dbc.Row([
         dbc.Col([
             html.H3("Description", className="mb-4"),
@@ -27,8 +26,6 @@ def overview_layout():
             " to visualise the data effectively." ),
             html.Br(),
         ], width=12),
-          
-    
         dbc.Col([
                 html.Label("Scenario", className="control-label"),
                 dcc.Dropdown(
@@ -37,37 +34,9 @@ def overview_layout():
                     persistence=True,
                     persistence_type='session'
                 )
-                # get_scenario_dropdown()
-                # dcc.Dropdown(
-                #     id='scenario-dropdown',
-                #     options=[{'label': s, 'value': s} for s in scenarios],
-                #     value=scenarios[0] if len(scenarios) > 0 else None,
-                #     # placeholder="Select a scenario...",
-                #     # className="dropdown"
-                # )
-        ], width=4),
-        dbc.Col([
-                html.Label("Start Year", className="control-label"),
-                dcc.Dropdown(
-                    id='start-year-dropdown',
-                    clearable=False,
-                    options=[{'label': str(year), 'value': year} for year in range(start_year, end_year + 1)],
-                    value=default_start_year,
-                    persistence=True,
-                    persistence_type='session'
-                )
-        ], width =1),
-        dbc.Col([
-                html.Label("End Year", className="control-label"),
-                dcc.Dropdown(
-                    id='end-year-dropdown',
-                    clearable=False,
-                    options=[{'label': str(year), 'value': year} for year in range(start_year, end_year + 1)],
-                    value=default_end_year,
-                    persistence=True,
-                    persistence_type='session'
-                )
-        ], width =1),
+                
+        ], width=6),
+       
         dbc.Col([
                 html.Label("Metric", className="control-label"),
                 dcc.Dropdown(
@@ -78,7 +47,42 @@ def overview_layout():
                     persistence=True,
                     persistence_type='session'
                 ) 
-        ], width=4),
+        ], width=6),
+        dbc.Col([
+                html.Label("Start Year", className="control-label"),
+                dcc.Dropdown(
+                    id='start-year-dropdown',
+                    clearable=False,
+                    options=[{'label': str(year), 'value': year} for year in range(start_year, end_year + 1)],
+                    value=default_start_year,
+                    persistence=True,
+                    persistence_type='session'
+                )
+        ], width =3),
+        dbc.Col([
+                html.Label("End Year", className="control-label"),
+                dcc.Dropdown(
+                    id='end-year-dropdown',
+                    clearable=False,
+                    options=[{'label': str(year), 'value': year} for year in range(start_year, end_year + 1)],
+                    value=default_end_year,
+                    persistence=True,
+                    persistence_type='session'
+                )
+        ], width =3),
+    
+        
+        dbc.Col([
+                html.Label("Unit"),
+                dcc.Dropdown(
+                    id = "unit-dropdown-overview",
+                    clearable= False,
+                    options = [],
+                    value = None,
+                    persistence=True,
+                    persistence_type='session'
+                )
+        ], width=3),
         dbc.Col([
                 html.Label("Chart Type", className="control-label"),
                 dcc.Dropdown(
@@ -89,7 +93,7 @@ def overview_layout():
                     persistence=True,
                     persistence_type='session'
                 ),
-        ], width=2)
+        ], width=3)
     ], className="mb-4"),
    
     dbc.Row([
