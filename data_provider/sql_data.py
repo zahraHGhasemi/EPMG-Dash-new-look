@@ -84,7 +84,7 @@
 #         })
 
 from auth.models import Scenario, StudyScenario, Table, Series, Year, Value, Study, db
-from sqlalchemy import select
+from sqlalchemy import or_, select
 import pandas as pd
 
 class SQLDataProvider:
@@ -234,3 +234,38 @@ class SQLDataProvider:
         return self.get_studies_by_status("archive")
     def get_ongoing_studies(self):
         return self.get_studies_by_status("ongoing")
+    def check_table_include_name(self, scenario_name, category_prefix, name_substrings):
+        scenario_id = self.session.execute(
+        select(Scenario.id).where(Scenario.name == scenario_name)
+        ).scalar_one_or_none()
+
+        if scenario_id is None:
+            return []
+
+        query = (
+            select(Table.name)
+            .join(Series, Series.table_id == Table.id)
+            .join(Value, Value.series_id == Series.id)
+            .where(Table.category.like(f"{category_prefix}%"))
+            .where(Value.scenario_id == scenario_id)
+        )
+
+        if name_substrings:
+            substring_conditions = [
+                Table.name.ilike(f"%{substring}%")
+                for substring in name_substrings
+            ]
+            query = query.where(or_(*substring_conditions))
+
+        query = query.distinct()
+
+        result = self.session.execute(query).scalars().all()
+        result.remove(category_prefix + '_' + 'FEC') if category_prefix + '_FEC' in result else None
+        # print(result, 'result')
+        return result
+    def get_table_title_by_name(self, table_name):
+        row = self.session.execute(
+            select(Table.title)
+            .where(Table.name == table_name)
+        ).scalar_one_or_none()
+        return row  # returns table_title or None

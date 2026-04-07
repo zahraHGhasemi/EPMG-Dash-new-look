@@ -37,6 +37,13 @@
                 <label class="form-check-label" for="study-arch-{{ loop.index }}">{{ study }}</label>
             </div>
             {% endfor %}
+            <h5>Ongoing Studies </h5>
+            {% for study in studies_ongoing %}
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="studies" value="{{ study }}" id="study-{{ loop.index }}">
+                <label class="form-check-label" for="study-{{ loop.index }}">{{ study }}</label>
+            </div>
+            {% endfor %}
         </div>
 
         <button class="btn btn-danger" onclick="return confirm('This will permanently delete selected studies. Continue?')">

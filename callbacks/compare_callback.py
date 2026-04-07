@@ -127,21 +127,27 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
             for i, row in enumerate(series_rows[:len(color_values)])
         }
         df['label'] = unit
+        if unit in dict_unit.keys():
+                df = unit_detect( unit, df)
         if compare_value:
             # df_compare = get_filtered_df(table_id, compare_scenario, year_range, df_override=df_user)
             df_compare = provider.get_filtered_df(table_id, compare_scenario, year_range)
             
-            if unit in dict_unit.keys():
-                df = unit_detect(unit, df)
-                df_compare = unit_detect(unit, df_compare)
 
             df['source'] = 'scenario'
             df_compare['source'] = 'scenario compare'
             df_compare['label'] = unit
+            if unit in dict_unit.keys():
+                df_compare = unit_detect(unit, df_compare)
+
             # Combine dataframes
             df_combined = pd.concat([df, df_compare])
+            
+
+
             if difference_option == 'no':
                 df_combined = df_combined.sort_values(by="Year")
+                
                 fig = plot_chart(df_combined, chart_types, facet_col = 'source',category_orders={'source': ['scenario', 'scenario compare']}, color_map=color_map, table_title=table_name)
 
             else:
@@ -156,12 +162,13 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
                 df_merged = pd.merge(df, df_compare, on=merge_cols, suffixes=('_df1','_df2'))
                 df_merged = df_merged.sort_values(by="Year")
                 df_merged['Difference'] = df_merged['Value_df1'] - df_merged['Value_df2']
-                
+                df_merged['Value'] = df_merged['Difference']
+                df_merged['label'] = unit
                 if chart_types == 'bar':  # Default to bar chart
                     df_merged = df_merged.sort_values(by = "Difference")
                     pos_df = df_merged[df_merged['Difference'] >= 0]
                     neg_df = df_merged[df_merged['Difference'] < 0]
-
+                    
                     # unique_series = df_merged['seriesTitle'].unique()
                     # palette = px.colors.qualitative.Light24
                     # color_map = {s: palette[i % len(palette)] for i, s in enumerate(unique_series)}
@@ -207,8 +214,7 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
                     fig = plot_chart(df_merged, chart_types, color_map= color_map, y_col='Difference',table_title=table_name)
             return fig
         else:
-            if unit in dict_unit.keys():
-                df = unit_detect( unit, df)
+            
             return plot_chart(df, chart_types, color_map= color_map, table_title=table_name)
     @app.callback(
         Output("download-dataframe-csv", "data"),

@@ -42,6 +42,7 @@ GRID_EFFICIENCY = 0.94
 ELECTRICITY_TO_H2_EFFICIENCY = 0.85
 
 
+
 def prepare_elec_gen_data(df_PWR_Gen_ELCC):
     df_PWR_Gen_ELCC_filtered = df_PWR_Gen_ELCC[['seriesName', 'Value', 'seriesTitle']].copy()
     df_PWR_Gen_ELCC_filtered.loc[df_PWR_Gen_ELCC_filtered['seriesName'].str.contains('GAS'), 'seriesTitle'] = NATURAL_GAS
@@ -231,6 +232,28 @@ def primary_to_final_energy_sankey(scenario, year, provider = SQLDataProvider(se
         print("Hydrogen generation data inconsistency: more hydrogen consumed than generated. Please check the data.")
     return df_all, list_table_ids
     
+def prepare_detailed_sector_FEC(scenario, year, category, name_sub, provider = SQLDataProvider(session=session)):
+    table_names = provider.check_table_include_name(scenario, category, name_sub)
+    table_ids = []
+    df_all = pd.DataFrame()
+    for name in table_names:
+        table_id = provider.get_table_id_by_name(name)
+        table_ids.append(table_id)
+        table_title = provider.get_table_title_by_name(name)
+        df = provider.get_filtered_df(table_id, scenario, [year, year])
+        text = table_title
+        for word in [
+            "FuelCons", "FEC", "Fuel", "consumption", "Consumption",
+            "Final Energy", "final energy", " for", "_", '-','FC'
+        ]:
+            text = text.replace(word, " ")
+
+        df["target"] = text.strip()
+        df = df[['seriesTitle', 'Value', 'target']]
+        # print(df.head(), 'df in prepare_detailed_sector_FEC')
+        df_all = pd.concat([df_all, df], ignore_index=True)
+    
+    return df_all, table_ids
 
 
 def prepare_sankey_data_energy_source_to_sector(scenario, year,provider = SQLDataProvider(session=session)):
@@ -284,7 +307,7 @@ def prepare_sankey_data_SEAI(scenario, year, provider = SQLDataProvider(session=
     df_renewable = provider.get_filtered_df(table_id_renewable, scenario, [year,year])
    
 
-    df_filtered = df_SYS_TPED[['seriesTitle','Value']]
+    df_filtered = df_SYS_TPED[['seriesTitle','Value']].copy()
     df_filtered.loc[len(df_filtered)] = ["Wind offshore", 0]
     df_filtered.loc[len(df_filtered)] = ["Wind onshore", 0]
     df_filtered.loc[len(df_filtered)] = ["Solar", 0]
@@ -440,6 +463,35 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
 
         return options, value
     @app.callback(
+        Output('sankey_title_dropdown', 'options'),
+        Output('sankey_title_dropdown', 'value'),
+        Input('year-sankey-slider', 'value'),
+        Input('scenario-sankey-dropdown', 'value')
+    )
+    def update_sankey_title(year, scenario):
+        if not scenario or not year:
+            return [], None
+        options= []
+        table_name_ls_1 = ['SYS_TPED', 'SYS_FEC_Fuel', 'PWR_Gen-ELCC', "AGR_FEC", "IND_FEC", "SRV_FEC", "RSD_FEC", "TRA_FEC"]
+        table_name_ls_2 = ['SYS_TPED', 'SYS_FEC_Sector', 'PWR_Gen-ELCC']
+        table_name_ls_3 = provider.check_table_include_name(scenario, 'TRA', ['FuelCons'])
+        table_name_ls_4 = provider.check_table_include_name(scenario, 'RSD', ['FuelCons'])
+        table_name_ls_5 = provider.check_table_include_name(scenario, 'IND', ['FEC'])
+        if len(table_name_ls_1) >0:
+            options.append({'label': 'Primary Energy to Demand detailed', 'value': 0})
+        if len(table_name_ls_2) >0:
+            options.append({'label': 'Primary Energy to Final Energy', 'value': 1})
+        if len(table_name_ls_3) >0:
+            options.append({'label': 'Final Energy Consumption in Transport', 'value': 2})
+        if len(table_name_ls_4) >0:
+            options.append({'label': 'Final Energy Consumption in Residential', 'value': 3})
+        if len(table_name_ls_5) >0:
+            options.append({'label': 'Final Energy Consumption in Industry', 'value': 4})
+
+        value = options[0]['value'] if options else None
+        return options, value
+
+    @app.callback(
         Output('sankey-diagram', 'figure'),
         Output('sankey-end-diagram', 'figure'),
       
@@ -448,6 +500,7 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
         Input('sankey_title_dropdown', 'value')
     )
     def update_sankey(year, scenario, title):
+
         if title == 0:
             # df_all = prepare_sankey_data_energy_source_to_sector(scenario, year[0], provider = provider)
             # df_all_end = prepare_sankey_data_energy_source_to_sector(scenario, year[1], provider = provider)
@@ -458,7 +511,15 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
             df_all, list_table_ids = prepare_sankey_data_SEAI(scenario, year[0], provider = provider)
             df_all_end, list_table_ids_end = prepare_sankey_data_SEAI(scenario, year[1], provider = provider)
                 # Nodes
-        
+        elif title == 2:
+            df_all, list_table_ids = prepare_detailed_sector_FEC(scenario, year[0], 'TRA', ['FuelCons'], provider = provider)
+            df_all_end, list_table_ids_end = prepare_detailed_sector_FEC(scenario, year[1], 'TRA', ['FuelCons'], provider = provider)
+        elif title == 3:
+            df_all, list_table_ids = prepare_detailed_sector_FEC(scenario, year[0], 'RSD', ['FuelCons'], provider = provider)
+            df_all_end, list_table_ids_end = prepare_detailed_sector_FEC(scenario, year[1], 'RSD', ['FuelCons'], provider = provider)
+        elif title == 4:
+            df_all, list_table_ids = prepare_detailed_sector_FEC(scenario, year[0], 'IND', ['FEC'], provider = provider)
+            df_all_end, list_table_ids_end = prepare_detailed_sector_FEC(scenario, year[1], 'IND', ['FEC'], provider = provider)
         series_color_map = provider.get_series_color_map_by_list_titles(list_table_ids + list_table_ids_end)
         node, node_indices, node_colors = link_colors(df_all, df_all_end, series_color_map)
         

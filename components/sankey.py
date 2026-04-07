@@ -45,11 +45,11 @@ def sankey_layout ():
                 dcc.Dropdown(
                     id="sankey_title_dropdown",
                     clearable=False,
-                    options=[
-                        {'label': 'Primary Energy to Demand detailed', 'value': 0},
-                        {'label': 'Primary Energy to Final Energy', 'value': 1}
-                    ],
-                    value=sankey_mode,
+                    # options=[
+                    #     {'label': 'Primary Energy to Demand detailed', 'value': 0},
+                    #     {'label': 'Primary Energy to Final Energy', 'value': 1}
+                    # ],
+                    # value=sankey_mode,
                     persistence=True,
                     persistence_type='session'
                 )

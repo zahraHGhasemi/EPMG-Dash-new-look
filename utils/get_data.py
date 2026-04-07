@@ -100,36 +100,36 @@ def get_subcategory_name(subcategory):
 #---------------------------------------------------------------------------------------------------------------------------------------------
 
 
-from utils.config_loader import chartsTitle
-# from utils.database_utils import read_sql
-from flask import session, has_request_context
-from flask_login import current_user
-import pandas as pd
-import os
-from flask import current_app
-from config.constants import CATEGORY_DICT
-# Mapping of category names to IDs
+# from utils.config_loader import chartsTitle
+# # from utils.database_utils import read_sql
+# from flask import session, has_request_context
+# from flask_login import current_user
+# import pandas as pd
+# import os
+# from flask import current_app
+# from config.constants import CATEGORY_DICT
+# # Mapping of category names to IDs
 
 
 # --- Helper to get user uploaded data from session ---
-def get_user_df():
-    if not has_request_context():
-        return None   # 👈 THIS LINE FIXES YOUR ERROR
+# def get_user_df():
+#     if not has_request_context():
+#         return None   # 👈 THIS LINE FIXES YOUR ERROR
 
-    meta = session.get("user_scenario")
-    if not meta:
-        return None
+#     meta = session.get("user_scenario")
+#     if not meta:
+#         return None
 
-    path = os.path.join(
-        current_app.instance_path,
-        "user_uploads",
-        f"{meta['id']}.parquet"
-    )
+#     path = os.path.join(
+#         current_app.instance_path,
+#         "user_uploads",
+#         f"{meta['id']}.parquet"
+#     )
 
-    if not os.path.exists(path):
-        return None
+#     if not os.path.exists(path):
+#         return None
 
-    return pd.read_parquet(path, engine="pyarrow")
+#     return pd.read_parquet(path, engine="pyarrow")
 
 # --- Functions with optional df_override ---
 # from flask import has_request_context

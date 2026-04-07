@@ -496,7 +496,9 @@ def remove_studies_page():
         studies_recent = [study.name for study in studies_recent]
         studies_archive = provider.get_archive_studies()
         studies_archive = [study.name for study in studies_archive]
-        return render_template("admin/remove_study.html", studies_recent=studies_recent, studies_archive=studies_archive)
+        studies_ongoing = provider.get_ongoing_studies()
+        studies_ongoing = [study.name for study in studies_ongoing]
+        return render_template("admin/remove_study.html", studies_recent=studies_recent, studies_archive=studies_archive, studies_ongoing=studies_ongoing)
 
     if request.method == "POST":
         studies = request.form.getlist("studies")  

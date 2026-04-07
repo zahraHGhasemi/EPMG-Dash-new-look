@@ -125,7 +125,7 @@ from dash_app.app import init_dash
 from auth.admin_routes import admin_bp
 from auth.user_routes import user_bp
 from flask_session import Session
-from dash_app.user_dash import init_user_dash
+# from dash_app.user_dash import init_user_dash
 from flask import redirect, request
 from data_provider.sql_data import SQLDataProvider
 from utils.dashboard_settings import get_dashboard_settings
@@ -151,7 +151,7 @@ with app.app_context():
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
-app.register_blueprint(user_bp)
+# app.register_blueprint(user_bp)
 
 
 app.config["SESSION_TYPE"] = "filesystem"
@@ -216,7 +216,7 @@ def dash_home():
     return render_template("home.html")
 
 init_dash(app)
-init_user_dash(app)
+# init_user_dash(app)
 
 if __name__ == "__main__":
     app.run(debug=True) 

@@ -29,7 +29,7 @@ def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = 
             facet_col = facet_col,
             category_orders=category_orders
         )
-        print(all_data_melted_filtered.columns, "label----")
+        # print(all_data_melted_filtered.columns, "label----")
         fig.update_layout(xaxis_title= x_col, yaxis_title= all_data_melted_filtered['label'].unique()[0] if not all_data_melted_filtered.empty else 'Value',
                           legend = dict(title_text='')) # Updated yaxis_title
         
