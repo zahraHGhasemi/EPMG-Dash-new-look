@@ -1,13 +1,16 @@
 from functools import wraps
-from flask import Blueprint, render_template
+from flask import Blueprint, Response, jsonify, render_template
 from flask_login import login_required, current_user
 from flask import request, redirect, flash, url_for
 import pandas as pd
 import os
 import re
+import io
+import csv
 from data_provider.sql_data import SQLDataProvider
 from auth.models import (
     Table,
+    Value,
     db,
     Scenario,
     StudyScenario,
@@ -663,4 +666,197 @@ def study_about():
     )
 
 
+def get_scenario_download_data(scenario_id, download_format="melted", preview=False, preview_limit=10):
+    scenario = db.session.get(Scenario, scenario_id)
+    if not scenario:
+        return None, None, "Scenario not found."
 
+    rows = (
+        db.session.query(
+            Table.name.label("tableName"),
+            Table.title.label("tableTitle"),
+            Table.label.label("label"),
+            Series.name.label("seriesName"),
+            Series.title.label("seriesTitle"),
+            Value.year.label("Year"),
+            Value.value.label("Value"),
+        )
+        .join(Series, Value.series_id == Series.id)
+        .join(Table, Series.table_id == Table.id)
+        .filter(Value.scenario_id == scenario.id)
+        .order_by(Table.name.asc(), Series.name.asc(), Value.year.asc())
+        .all()
+    )
+
+    if not rows:
+        return scenario, {"columns": [], "rows": []}, None
+
+    if download_format == "wide":
+        grouped = {}
+        all_years = set()
+
+        for row in rows:
+            key = (
+                scenario.name,
+                row.tableName,
+                row.tableTitle,
+                row.label,
+                row.seriesName,
+                row.seriesTitle,
+            )
+
+            if key not in grouped:
+                grouped[key] = {}
+
+            grouped[key][row.Year] = row.Value
+            all_years.add(row.Year)
+
+        sorted_years = sorted(all_years)
+
+        columns = [
+            "scenario",
+            "tableName",
+            "tableTitle",
+            "label",
+            "seriesName",
+            "seriesTitle",
+            *[str(year) for year in sorted_years],
+        ]
+
+        data_rows = []
+        for key, year_values in grouped.items():
+            row_dict = {
+                "scenario": key[0],
+                "tableName": key[1],
+                "tableTitle": key[2],
+                "label": key[3],
+                "seriesName": key[4],
+                "seriesTitle": key[5],
+            }
+
+            for year in sorted_years:
+                row_dict[str(year)] = year_values.get(year, "")
+
+            data_rows.append(row_dict)
+
+        if preview:
+            data_rows = data_rows[:preview_limit]
+
+        return scenario, {"columns": columns, "rows": data_rows}, None
+
+    columns = [
+        "scenario",
+        "tableName",
+        "tableTitle",
+        "label",
+        "seriesName",
+        "seriesTitle",
+        "Year",
+        "Value",
+    ]
+
+    data_rows = [
+        {
+            "scenario": scenario.name,
+            "tableName": row.tableName,
+            "tableTitle": row.tableTitle,
+            "label": row.label,
+            "seriesName": row.seriesName,
+            "seriesTitle": row.seriesTitle,
+            "Year": row.Year,
+            "Value": row.Value,
+        }
+        for row in rows
+    ]
+
+    if preview:
+        data_rows = data_rows[:preview_limit]
+
+    return scenario, {"columns": columns, "rows": data_rows}, None
+
+@admin_bp.route("/preview_download_tables", methods=["POST"])
+@login_required
+@admin_required
+def preview_download_tables():
+    data = request.get_json(silent=True) or {}
+
+    scenario_id = data.get("scenario_id")
+    download_format = data.get("download_format", "melted")
+
+    if not scenario_id:
+        return jsonify({"error": "Scenario is required."}), 400
+
+    scenario, result, error = get_scenario_download_data(
+        scenario_id=scenario_id,
+        download_format=download_format,
+        preview=True,
+        preview_limit=10,
+    )
+
+    if error:
+        return jsonify({"error": error}), 404
+
+    return jsonify(result)
+
+@admin_bp.route("/download_tables", methods=["GET", "POST"])
+@login_required
+@admin_required
+def download_tables():
+    scenarios = Scenario.query.order_by(Scenario.name.asc()).all()
+
+    if request.method == "GET":
+        return render_template("admin/download_tables.html", scenarios=scenarios)
+
+    scenario_id = request.form.get("scenario")
+    download_format = request.form.get("download_format", "melted")
+
+    if not scenario_id:
+        flash("Please select a scenario.", "warning")
+        return render_template("admin/download_tables.html", scenarios=scenarios)
+
+    scenario, result, error = get_scenario_download_data(
+        scenario_id=scenario_id,
+        download_format=download_format,
+        preview=False,
+    )
+
+    if error:
+        flash(error, "danger")
+        return render_template("admin/download_tables.html", scenarios=scenarios)
+
+    if not result["rows"]:
+        flash("No data was found for the selected scenario.", "warning")
+        return render_template("admin/download_tables.html", scenarios=scenarios)
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=result["columns"])
+    writer.writeheader()
+    writer.writerows(result["rows"])
+
+    csv_data = output.getvalue()
+    output.close()
+
+    safe_scenario_name = (
+        scenario.name.strip()
+        .replace(" ", "_")
+        .replace("/", "_")
+        .replace("\\", "_")
+    )
+
+    filename = f"{safe_scenario_name}_{download_format}_tables.csv"
+
+    return Response(
+        csv_data,
+        mimetype="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        },
+    )
+
+
+@admin_bp.route("/edit_overview", methods=["GET", "POST"])
+@login_required
+@admin_required
+def edit_overview():
+    
+    return render_template("admin/edit_overview.html")

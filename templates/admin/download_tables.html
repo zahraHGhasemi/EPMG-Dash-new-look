@@ -1,0 +1,170 @@
+
+
+
+
+{% extends "base.html" %}
+{% block title %}Download Tables{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <div class="mb-3">
+        <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-outline-secondary">
+            ← Back
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="card-title mb-3">Download Tables</h2>
+            <p class="text-muted">
+                Select a scenario and format. Preview updates automatically.
+            </p>
+
+            <form method="POST" action="{{ url_for('admin.download_tables') }}">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Scenario</label>
+                        <select class="form-select" id="scenario" name="scenario" required>
+                            <option value="" selected disabled>Select a scenario</option>
+                            {% for scenario in scenarios %}
+                                <option value="{{ scenario.id }}">{{ scenario.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Download format</label>
+                        <select class="form-select" id="download_format" name="download_format">
+                            <option value="melted">Melted</option>
+                            <option value="wide">Wide</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary">Download File</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-body">
+            <h4>Preview</h4>
+
+            <div id="preview-loading" class="text-primary d-none">
+                Loading preview...
+            </div>
+
+            <div id="preview-message" class="text-muted">
+                Select scenario and format to preview.
+            </div>
+
+            <div id="preview-container" class="table-responsive d-none">
+                <table class="table table-sm table-bordered">
+                    <thead id="preview-head"></thead>
+                    <tbody id="preview-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const scenario = document.getElementById("scenario");
+    const format = document.getElementById("download_format");
+
+    const loading = document.getElementById("preview-loading");
+    const message = document.getElementById("preview-message");
+    const container = document.getElementById("preview-container");
+    const head = document.getElementById("preview-head");
+    const body = document.getElementById("preview-body");
+
+    function reset(msg) {
+        head.innerHTML = "";
+        body.innerHTML = "";
+        container.classList.add("d-none");
+        loading.classList.add("d-none");
+        message.classList.remove("d-none");
+        message.textContent = msg;
+    }
+
+    function render(columns, rows) {
+        head.innerHTML = "";
+        body.innerHTML = "";
+
+        let tr = document.createElement("tr");
+        columns.forEach(c => {
+            let th = document.createElement("th");
+            th.textContent = c;
+            tr.appendChild(th);
+        });
+        head.appendChild(tr);
+
+        rows.forEach(r => {
+            let tr = document.createElement("tr");
+            columns.forEach(c => {
+                let td = document.createElement("td");
+                td.textContent = r[c] ?? "";
+                tr.appendChild(td);
+            });
+            body.appendChild(tr);
+        });
+
+        message.classList.add("d-none");
+        loading.classList.add("d-none");
+        container.classList.remove("d-none");
+    }
+
+    function fetchPreview() {
+        const scenarioId = scenario.value;
+        const fmt = format.value;
+
+        if (!scenarioId) {
+            reset("Please select a scenario.");
+            return;
+        }
+
+        loading.classList.remove("d-none");
+        message.classList.add("d-none");
+        container.classList.add("d-none");
+
+        fetch("{{ url_for('admin.preview_download_tables') }}", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                scenario_id: scenarioId,
+                download_format: fmt
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                reset(data.error);
+                return;
+            }
+            render(data.columns, data.rows);
+        })
+        .catch(() => reset("Error loading preview"));
+    }
+
+    // 🔥 auto-trigger on change
+    scenario.addEventListener("change", fetchPreview);
+    format.addEventListener("change", fetchPreview);
+});
+</script>
+
+{% endblock %}

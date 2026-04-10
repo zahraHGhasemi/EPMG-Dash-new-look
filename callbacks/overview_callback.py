@@ -87,8 +87,7 @@ def register_overview_callbacks(app, provider):
         Input('unit-dropdown-overview', 'value')
     )
     def update_overview_chart(scenario, year_start, year_end, metric, chart_type, unit):
-        # data_melted_base = get_data_melted(scenario, [year_start, year_start])
-        # all_data_melted = get_data_melted(scenario, [year_end, year_end])
+       
         renewable_list = ['PWR-WIN-OF', "PWR-SOL","PWR-WIN-ON","PWR-BIO", "PWR-HYD", "PWR-OCE"]
         table_id_SYS_FEC_Fuel = provider.get_table_id_by_name('SYS_FEC_Fuel')
         table_id_SYS_NRG_Import = provider.get_table_id_by_name('SYS_NRG-Import')
@@ -98,17 +97,13 @@ def register_overview_callbacks(app, provider):
         if metric == 'FEC':
             data_base = provider.get_filtered_df(table_id_SYS_FEC_Fuel, scenario, [year_start, year_start])
             data_selected = provider.get_filtered_df(table_id_SYS_FEC_Fuel, scenario, [year_end, year_end])
-            # data_base = data_melted_base[data_melted_base['tableName'] == 'SYS_FEC_Fuel']
-            # data_selected = all_data_melted[all_data_melted['tableName'] == 'SYS_FEC_Fuel']
-            # label = provider.get_labels(table_id_SYS_FEC_Fuel)[0]
+            
             table_id_for_colors = table_id_SYS_FEC_Fuel
         
         elif metric == 'Import':
             data_base = provider.get_filtered_df(table_id_SYS_NRG_Import, scenario, [year_start, year_start])
             data_selected = provider.get_filtered_df(table_id_SYS_NRG_Import, scenario, [year_end, year_end])
-            # data_base = data_melted_base[data_melted_base['tableName'] == 'SYS_NRG-Import']
-            # data_selected = all_data_melted[all_data_melted['tableName'] == 'SYS_NRG-Import']
-            # label = provider.get_labels(table_id_SYS_NRG_Import)[0]
+            
             table_id_for_colors = table_id_SYS_NRG_Import
 
         elif metric == 'Renewable':
@@ -116,12 +111,8 @@ def register_overview_callbacks(app, provider):
             data_selected = provider.get_filtered_df(table_id_PWR_Gen_ELCC, scenario, [year_end, year_end])
             data_base = data_base[data_base['seriesName'].isin(renewable_list)]
             data_selected = data_selected[data_selected['seriesName'].isin(renewable_list)]
-            # label = provider.get_labels(table_id_PWR_Gen_ELCC)[0]
             table_id_for_colors = table_id_PWR_Gen_ELCC
-            # data_base = data_melted_base[(data_melted_base['tableName'] == 'PWR_Gen-ELCC')& 
-            #                                     (data_melted_base['seriesName'].isin(renewable_list))]
-            # data_selected = all_data_melted[(all_data_melted['tableName'] == 'PWR_Gen-ELCC')& 
-            #                                    (all_data_melted['seriesName'].isin(renewable_list))]
+
         data_base = unit_detect(label, data_base)
         data_selected = unit_detect(label, data_selected)
 
