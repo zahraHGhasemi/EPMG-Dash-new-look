@@ -1,39 +1,192 @@
-
-
-
-
 {% extends "base.html" %}
-{% block title %}Download Tables{% endblock %}
+{% block title %}Edit Overview Metrics{% endblock %}
 
 {% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-outline-secondary">
+        ← Back
+    </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
 <div class="container mt-4">
+    <h2>Edit Overview Metrics</h2>
 
-    <div class="mb-3">
-        <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-outline-secondary">
-            ← Back
-        </a>
-    </div>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
-    <div class="card shadow-sm">
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header">
+            <strong>Current Overview Metrics</strong>
+        </div>
         <div class="card-body">
-            <h2 class="card-title mb-3">Edit Overview Metrics</h2>
-            <p class="text-muted">
-                Update the metrics displayed in the overview section.
-            </p>
+            {% if overview_metrics %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th>Metric Title</th>
+                            <th>Chosen Series</th>
+                            <th>Based On Table</th>
+                            <th>Divide By</th>
+                            <th style="width: 120px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for metric in overview_metrics %}
+                        <tr>
+                            <td>{{ metric.title }}</td>
+                            <td>{{ metric.series_titles | join(", ") }}</td>
+                            <td>
+                                {{ metric.table_title }}
+                                {% if metric.category %}
+                                <span class="text-muted">({{ category_dict.get(metric.category, metric.category) }})</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ metric.divide_by }}</td>
+                            <td>
+                                <form method="POST"
+                                      action="{{ url_for('admin.delete_overview_metric', metric_index=loop.index0) }}"
+                                      onsubmit="return confirm('Delete this overview metric?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No overview metrics have been added yet.</p>
+            {% endif %}
         </div>
     </div>
 
-</div>
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin.edit_overview') }}" id="overview-table-selector-form">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label">Sector</label>
+                        <select name="category" class="form-select" id="overview-category-select">
+                            {% for category in categories %}
+                            <option value="{{ category }}" {% if category == selected_category %}selected{% endif %}>
+                                {{ category_dict.get(category, category) }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Subsector (Table)</label>
+                        <select name="table_id" class="form-select" id="overview-table-select">
+                            {% for table in tables_for_category %}
+                            <option value="{{ table.id }}" {% if selected_table and table.id == selected_table.id %}selected{% endif %}>
+                                {{ table.title or table.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-outline-primary w-100">Load</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 
+    {% if selected_table %}
+    <form method="POST">
+        <input type="hidden" name="selected_category" value="{{ selected_category }}">
+        <input type="hidden" name="selected_table_id" value="{{ selected_table.id }}">
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <strong>Selected Table:</strong> {{ selected_table.title or selected_table.name }}
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label">Overview Metric Title</label>
+                        <input
+                            type="text"
+                            name="metric_title"
+                            value="{{ metric_title_value }}"
+                            class="form-control"
+                            placeholder="Enter a metric title"
+                            required
+                        >
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Divide Values By</label>
+                        <input
+                            type="number"
+                            step="any"
+                            name="divide_by"
+                            value="{{ divide_by_value }}"
+                            class="form-control"
+                            placeholder="e.g. 1000"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <h6 class="mt-3">Choose Series</h6>
+                <div class="row">
+                    {% if selected_series %}
+                        {% for series in selected_series %}
+                        {% set series_title = series.title or series.name %}
+                        <div class="col-md-4 mb-2">
+                            <div class="form-check">
+                                <input
+                                    class="form-check-input"
+                                    type="checkbox"
+                                    name="series_titles"
+                                    value="{{ series_title }}"
+                                    id="series_{{ series.id }}"
+                                    {% if series_title in selected_series_titles %}checked{% endif %}
+                                >
+                                <label class="form-check-label" for="series_{{ series.id }}">
+                                    {{ series_title }}
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-12">
+                            <p class="text-muted mb-0">No series linked to this table.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-3">Save Overview Metric</button>
+    </form>
+    {% else %}
+    <div class="alert alert-info">No table is available for the selected sector.</div>
+    {% endif %}
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const selectorForm = document.getElementById("overview-table-selector-form");
+    const categorySelect = document.getElementById("overview-category-select");
+    const tableSelect = document.getElementById("overview-table-select");
+
+    if (!selectorForm || !categorySelect || !tableSelect) {
+        return;
+    }
+
+    categorySelect.addEventListener("change", function () {
+        tableSelect.selectedIndex = 0;
+        selectorForm.submit();
+    });
+});
+</script>
 {% endblock %}

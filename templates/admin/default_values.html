@@ -57,9 +57,14 @@
             <div class="col-md-6">
                 <label class="form-label">Overview Metric</label>
                 <select class="form-select" name="overview_metric" required>
-                    <option value="FEC" {% if settings.overview_metric == "FEC" %}selected{% endif %}>FEC</option>
-                    <option value="Import" {% if settings.overview_metric == "Import" %}selected{% endif %}>Import</option>
-                    <option value="Renewable" {% if settings.overview_metric == "Renewable" %}selected{% endif %}>Renewable</option>
+                    {% for metric in settings.overview_metrics %}
+                    <option value="{{ metric.title }}" {% if settings.overview_metric == metric.title %}selected{% endif %}>
+                        {{ metric.title }}
+                    </option>
+                    {% endfor %}
+                    {% if not settings.overview_metrics and settings.overview_metric %}
+                    <option value="{{ settings.overview_metric }}" selected>{{ settings.overview_metric }}</option>
+                    {% endif %}
                 </select>
             </div>
 

@@ -32,6 +32,3 @@ CATEGORY_DICT = {
     'AGR': 'Agriculture',
 }
 
-OVERVIEW_METRICS = {'Final Energy Consumption': "SYS_FEC_Fuel",
-                    'Import': "SYS_NRG-Import",
-                    'Renewable Generation': "PWR_Gen-ELCC"}

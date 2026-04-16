@@ -20,7 +20,12 @@ from auth.models import (
     normalize_series_color,
 )
 from utils.update_db_table import process_uploaded_csv
-from utils.dashboard_settings import get_dashboard_settings, save_dashboard_settings
+from utils.dashboard_settings import (
+    get_dashboard_settings,
+    get_overview_metrics,
+    save_dashboard_settings,
+    save_overview_metrics,
+)
 from config.constants import CATEGORY_DICT
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -396,6 +401,7 @@ def default_values():
                 "default_sector": request.form.get("default_sector"),
                 "default_subsector": request.form.get("default_subsector"),
             }
+            payload["overview_metrics"] = get_dashboard_settings().get("overview_metrics", [])
 
             selected_study = (payload["default_study_id"] or "").strip()
             selected_scenario = (payload["default_scenario"] or "").strip()
@@ -852,11 +858,111 @@ def download_tables():
             "Content-Disposition": f"attachment; filename={filename}"
         },
     )
+def _build_overview_metric(table: Table, category: str, form) -> dict:
+    metric_title = (form.get("metric_title") or "").strip()
+    divide_by_raw = (form.get("divide_by") or "").strip()
+    chosen_series = [
+        series_title.strip()
+        for series_title in form.getlist("series_titles")
+        if (series_title or "").strip()
+    ]
+
+    if not metric_title:
+        raise ValueError("Please enter the overview metric name.")
+    if not chosen_series:
+        raise ValueError("Please select at least one series.")
+    if not divide_by_raw:
+        raise ValueError("Please enter a divide by value.")
+
+    try:
+        divide_by = float(divide_by_raw)
+    except ValueError as exc:
+        raise ValueError("Divide by value must be a valid number.") from exc
+
+    if divide_by == 0:
+        raise ValueError("Divide by value cannot be zero.")
+
+    valid_series_titles = {
+        (series.title or series.name).strip()
+        for series in Series.query.filter_by(table_id=table.id).all()
+    }
+    invalid_series = [series_title for series_title in chosen_series if series_title not in valid_series_titles]
+    if invalid_series:
+        raise ValueError("Some selected series do not belong to the selected table.")
+
+    existing_titles = {metric["title"].casefold() for metric in get_overview_metrics()}
+    if metric_title.casefold() in existing_titles:
+        raise ValueError("An overview metric with that name already exists.")
+
+    return {
+        "title": metric_title,
+        "category": category,
+        "table_id": table.id,
+        "table_title": table.title or table.name,
+        "series_titles": chosen_series,
+        "divide_by": divide_by,
+    }
+
 
 
 @admin_bp.route("/edit_overview", methods=["GET", "POST"])
 @login_required
 @admin_required
 def edit_overview():
-    
-    return render_template("admin/edit_overview.html")
+    provider = SQLDataProvider(db.session)
+    selected_category = (request.form.get("selected_category") or request.args.get("category") or "").strip()
+    selected_table_id = request.form.get("selected_table_id", type=int) or request.args.get("table_id", type=int)
+    metric_title_value = (request.form.get("metric_title") or "").strip()
+    divide_by_value = (request.form.get("divide_by") or "").strip()
+    selected_series_titles = {
+        series_title.strip()
+        for series_title in request.form.getlist("series_titles")
+        if (series_title or "").strip()
+    }
+
+    if request.method == "POST":
+        if not selected_table_id:
+            flash("Choose a table before saving an overview metric.", "warning")
+        else:
+            try:
+                selected_table = db.session.get(Table, selected_table_id)
+                if not selected_table:
+                    raise ValueError("Selected table was not found.")
+                if selected_category and selected_table.category != selected_category:
+                    raise ValueError("Selected table does not belong to the chosen sector.")
+
+                overview_metrics = get_overview_metrics()
+                overview_metrics.append(_build_overview_metric(selected_table, selected_category, request.form))
+                save_overview_metrics(overview_metrics)
+
+                flash(f'Overview metric "{metric_title_value}" added successfully.', "success")
+                return redirect(url_for("admin.edit_overview", category=selected_category, table_id=selected_table_id))
+            except ValueError as exc:
+                flash(str(exc), "danger")
+
+    context = _get_selected_table_context(provider, selected_category, selected_table_id)
+
+    return render_template(
+        "admin/edit_overview.html",
+        overview_metrics=get_overview_metrics(),
+        category_dict=CATEGORY_DICT,
+        metric_title_value=metric_title_value,
+        divide_by_value=divide_by_value,
+        selected_series_titles=selected_series_titles,
+        **context,
+    )
+
+
+@admin_bp.route("/edit_overview/delete/<int:metric_index>", methods=["POST"])
+@login_required
+@admin_required
+def delete_overview_metric(metric_index: int):
+    overview_metrics = get_overview_metrics()
+    if metric_index < 0 or metric_index >= len(overview_metrics):
+        flash("Overview metric was not found.", "danger")
+        return redirect(url_for("admin.edit_overview"))
+
+    deleted_metric = overview_metrics.pop(metric_index)
+    save_overview_metrics(overview_metrics)
+    flash(f'Overview metric "{deleted_metric["title"]}" deleted.', "success")
+    return redirect(url_for("admin.edit_overview"))

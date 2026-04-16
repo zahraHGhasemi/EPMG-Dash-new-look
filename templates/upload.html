@@ -25,7 +25,16 @@
         {% endfor %}
       {% endif %}
     {% endwith %}
-
+    <p>
+      Please upload a file that contains the following columns: 
+      <ul>
+        <li>tableName</li>
+        <li>seriesName</li>
+        <li>label</li>
+        <li>Yearly data columns ranging from  for example 2018 to 2050</li>
+      </ul>
+      It is assumed that each tableName,label combination is unique, and that each tableName has its own associated seriesNames. However, the same seriesName may be used across different tables. Ensure that each row is properly structured so the data can be processed correctly.
+    </p>
     <form method="POST" enctype="multipart/form-data">
 
         <div class="mb-3">

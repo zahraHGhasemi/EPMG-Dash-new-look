@@ -16,6 +16,15 @@ def overview_layout():
     end_year = settings["end_year"]
     overview_metric = settings["overview_metric"]
     overview_chart_type = settings["overview_chart_type"]
+    overview_metrics = settings.get("overview_metrics", [])
+    metric_options = [
+        {"label": metric["title"], "value": metric["title"]}
+        for metric in overview_metrics
+    ]
+    if not metric_options and overview_metric:
+        metric_options = [{"label": overview_metric, "value": overview_metric}]
+    metric_values = {option["value"] for option in metric_options}
+    default_metric_value = overview_metric if overview_metric in metric_values else (metric_options[0]["value"] if metric_options else None)
 
     return dbc.Container([
     dbc.Row([
@@ -42,8 +51,8 @@ def overview_layout():
                 dcc.Dropdown(
                     id='metric-dropdown',
                     clearable=False,
-                    options=['FEC', 'Import', 'Renewable'],
-                    value=overview_metric,
+                    options=metric_options,
+                    value=default_metric_value,
                     persistence=True,
                     persistence_type='session'
                 ) 

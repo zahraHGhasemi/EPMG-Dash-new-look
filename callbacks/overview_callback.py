@@ -4,9 +4,18 @@ import plotly.express as px
 # from utils.dataframe_melter import get_data_melted
 from data_provider.sql_data import SQLDataProvider
 from utils.plot_chart import plot_pie_chart, plot_bar_chart, plot_two_pie_charts_px, plot_two_bar_charts_px
-from utils.dashboard_settings import get_dashboard_settings
+from utils.dashboard_settings import get_dashboard_settings, get_overview_metrics
 from auth.models import normalize_series_color, pastel_continuous_palette
 from utils.unit_handler import unit_detect
+
+
+def _get_overview_metric_config(metric_title):
+    settings = get_dashboard_settings()
+    overview_metrics = get_overview_metrics(settings)
+    metric_map = {metric["title"]: metric for metric in overview_metrics}
+    return metric_map.get(metric_title), overview_metrics, settings
+
+
 def register_overview_callbacks(app, provider):
     @app.callback(
         Output('scenario-dropdown', 'options'),
@@ -43,23 +52,39 @@ def register_overview_callbacks(app, provider):
         return options, value
     
     @app.callback(
+        Output('metric-dropdown', 'options'),
+        Output('metric-dropdown', 'value'),
+        Input("url", "href"),
+        State('metric-dropdown', 'value')
+    )
+    def update_metric_dropdown(_, current_value):
+        settings = get_dashboard_settings()
+        overview_metrics = get_overview_metrics(settings)
+        options = [{"label": metric["title"], "value": metric["title"]} for metric in overview_metrics]
+        option_values = {option["value"] for option in options}
+        configured = settings.get("overview_metric")
+
+        if current_value in option_values:
+            value = current_value
+        elif configured in option_values:
+            value = configured
+        else:
+            value = options[0]["value"] if options else None
+
+        return options, value
+
+    @app.callback(
         Output('unit-dropdown-overview', 'options'),
         Output('unit-dropdown-overview', 'value'),
         Input('metric-dropdown', 'value'),
         State('unit-dropdown-overview', 'value')
     )
     def update_unit(metric, current_value):
-        if metric == 'FEC':
-            table_name = 'SYS_FEC_Fuel'
-            category = 'System'
-        elif metric == 'Import':
-            table_name = 'SYS_NRG-Import'
-            category = 'System'
-        elif metric == 'Renewable':
-            table_name = 'PWR_Gen-ELCC'
-            category = 'Power'
+        metric_config, _, _ = _get_overview_metric_config(metric)
+        if not metric_config:
+            return [], None
 
-        table_id = provider.get_table_id_by_name(table_name)
+        table_id = metric_config.get("table_id")
         df_unit = provider.get_labels(table_id)
         if not df_unit:
             return [], None
@@ -87,36 +112,34 @@ def register_overview_callbacks(app, provider):
         Input('unit-dropdown-overview', 'value')
     )
     def update_overview_chart(scenario, year_start, year_end, metric, chart_type, unit):
-       
-        renewable_list = ['PWR-WIN-OF', "PWR-SOL","PWR-WIN-ON","PWR-BIO", "PWR-HYD", "PWR-OCE"]
-        table_id_SYS_FEC_Fuel = provider.get_table_id_by_name('SYS_FEC_Fuel')
-        table_id_SYS_NRG_Import = provider.get_table_id_by_name('SYS_NRG-Import')
-        table_id_PWR_Gen_ELCC = provider.get_table_id_by_name('PWR_Gen-ELCC')
-        label = unit
-        table_id_for_colors = None
-        if metric == 'FEC':
-            data_base = provider.get_filtered_df(table_id_SYS_FEC_Fuel, scenario, [year_start, year_start])
-            data_selected = provider.get_filtered_df(table_id_SYS_FEC_Fuel, scenario, [year_end, year_end])
-            
-            table_id_for_colors = table_id_SYS_FEC_Fuel
-        
-        elif metric == 'Import':
-            data_base = provider.get_filtered_df(table_id_SYS_NRG_Import, scenario, [year_start, year_start])
-            data_selected = provider.get_filtered_df(table_id_SYS_NRG_Import, scenario, [year_end, year_end])
-            
-            table_id_for_colors = table_id_SYS_NRG_Import
+        metric_config, _, _ = _get_overview_metric_config(metric)
+        if not metric_config or not scenario or year_start is None or year_end is None:
+            return px.bar(title="No overview metric available")
 
-        elif metric == 'Renewable':
-            data_base = provider.get_filtered_df(table_id_PWR_Gen_ELCC, scenario, [year_start, year_start])
-            data_selected = provider.get_filtered_df(table_id_PWR_Gen_ELCC, scenario, [year_end, year_end])
-            data_base = data_base[data_base['seriesName'].isin(renewable_list)]
-            data_selected = data_selected[data_selected['seriesName'].isin(renewable_list)]
-            table_id_for_colors = table_id_PWR_Gen_ELCC
+        table_id = metric_config.get("table_id")
+        selected_series_titles = set(metric_config.get("series_titles") or [])
+        divide_by = metric_config.get("divide_by") or 1.0
+
+        if not table_id:
+            return px.bar(title="Overview metric is missing its source table")
+
+        label = unit
+        data_base = provider.get_filtered_df(table_id, scenario, [year_start, year_start])
+        data_selected = provider.get_filtered_df(table_id, scenario, [year_end, year_end])
+
+        if selected_series_titles:
+            data_base = data_base[data_base["seriesTitle"].isin(selected_series_titles)]
+            data_selected = data_selected[data_selected["seriesTitle"].isin(selected_series_titles)]
+
+        data_base = data_base.copy()
+        data_selected = data_selected.copy()
+        data_base["Value"] = data_base["Value"] / divide_by
+        data_selected["Value"] = data_selected["Value"] / divide_by
 
         data_base = unit_detect(label, data_base)
         data_selected = unit_detect(label, data_selected)
 
-        color_map = provider.get_series_color_map_by_title(table_id_for_colors) if table_id_for_colors else {}
+        color_map = provider.get_series_color_map_by_title(table_id) if table_id else {}
         all_titles = list(dict.fromkeys(data_base["seriesTitle"].tolist() + data_selected["seriesTitle"].tolist()))
         fallback = pastel_continuous_palette(len(all_titles))
         for i, title in enumerate(all_titles):
@@ -127,5 +150,7 @@ def register_overview_callbacks(app, provider):
             fig = plot_two_pie_charts_px(data_base, year_start, data_selected, year_end, metric, label, color_map=color_map)
         elif chart_type == 'bar':
             fig = plot_two_bar_charts_px(data_base, year_start, data_selected, year_end, metric, label, color_map=color_map)
+        else:
+            fig = px.bar(title=metric)
 
         return fig
