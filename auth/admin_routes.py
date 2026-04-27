@@ -19,7 +19,12 @@ from auth.models import (
     StudyAbout,
     normalize_series_color,
 )
-from utils.update_db_table import process_uploaded_csv
+from utils.update_db_table import (
+    SUPPORTED_UPLOAD_FORMAT,
+    load_and_validate_uploaded_csvs,
+    process_uploaded_csv,
+    validate_upload_format,
+)
 from utils.dashboard_settings import (
     get_dashboard_settings,
     get_overview_metrics,
@@ -27,7 +32,7 @@ from utils.dashboard_settings import (
     save_overview_metrics,
 )
 from config.constants import CATEGORY_DICT
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 
 admin_bp = Blueprint(
@@ -291,6 +296,35 @@ def _handle_edit_titles_post(form) -> tuple[str, str, str, int | None]:
         )
 
 
+def _delete_table_and_related_rows(selected_category: str, selected_table_id: int | None) -> tuple[str, str, str, int | None]:
+    if not selected_table_id:
+        raise ValueError("Choose a table before deleting.")
+
+    table = db.session.get(Table, selected_table_id)
+    if not table:
+        raise ValueError("Selected table was not found.")
+
+    if selected_category and table.category != selected_category:
+        raise ValueError("Selected table does not belong to the chosen sector.")
+
+    table_title = table.title or table.name
+
+    series_ids_subquery = select(Series.id).where(Series.table_id == table.id)
+    db.session.execute(
+        delete(Value).where(Value.series_id.in_(series_ids_subquery))
+    )
+    db.session.execute(delete(Series).where(Series.table_id == table.id))
+    db.session.delete(table)
+    db.session.commit()
+
+    return (
+        f'Table "{table_title}" deleted successfully.',
+        "success",
+        selected_category,
+        None,
+    )
+
+
 def admin_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -325,11 +359,13 @@ def upload_scenario():
     if request.method == "GET":
         return render_template(
             "upload.html",
-            title="Upload scenario to main database"
+            title="Upload scenario to main database",
+            selected_upload_format=SUPPORTED_UPLOAD_FORMAT,
         )
 
     files = [f for f in request.files.getlist("files") if (getattr(f, "filename", "") or "").strip()]
     scenario_name = (request.form.get("scenario_name") or "").strip()
+    upload_format = request.form.get("upload_format")
     if not scenario_name:
         scenario_name = _infer_scenario_name_from_files(files)
 
@@ -337,13 +373,17 @@ def upload_scenario():
         flash("At least one CSV file is required", "danger")
         return redirect(url_for("admin.upload_scenario"))
 
+    if len(files) > 1:
+        flash("Format 1 accepts only one CSV file. Please upload a single file.", "danger")
+        return redirect(url_for("admin.upload_scenario"))
+
     if not scenario_name:
         flash("Scenario name is required", "danger")
         return redirect(url_for("admin.upload_scenario"))
     
     try:
-        dataframes = [pd.read_csv(file.stream) for file in files]
-        df = pd.concat(dataframes, ignore_index=True)
+        validate_upload_format(upload_format)
+        df = load_and_validate_uploaded_csvs(files)
 
         # Check if scenario exists
         exists = db.session.query(Scenario).filter_by(name=scenario_name).first()
@@ -616,6 +656,33 @@ def edit_titles():
         category_dict=CATEGORY_DICT,
         **context,
     )
+
+
+@admin_bp.route("/edit_titles/delete_table", methods=["POST"])
+@login_required
+@admin_required
+def delete_table_from_edit_titles():
+    selected_category = (request.form.get("selected_category") or "").strip()
+    selected_table_id = request.form.get("selected_table_id", type=int)
+
+    try:
+        message, category, redirect_category, redirect_table_id = _delete_table_and_related_rows(
+            selected_category,
+            selected_table_id,
+        )
+        flash(message, category)
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Could not delete table: {e}", "danger")
+        redirect_category = selected_category
+        redirect_table_id = selected_table_id
+
+    redirect_kwargs = {}
+    if redirect_category:
+        redirect_kwargs["category"] = redirect_category
+    if redirect_table_id:
+        redirect_kwargs["table_id"] = redirect_table_id
+    return redirect(url_for("admin.edit_titles", **redirect_kwargs))
 
 
 @admin_bp.route("/study_about", methods=["GET", "POST"])

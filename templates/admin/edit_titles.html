@@ -58,8 +58,20 @@
         <input type="hidden" name="selected_table_id" value="{{ selected_table.id }}">
 
         <div class="card mb-4">
-            <div class="card-header">
-                <strong>Table:</strong> {{ selected_table.name }}
+            <div class="card-header d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <div>
+                    <strong>Table:</strong> {{ selected_table.name }}
+                </div>
+                <div>
+                    <button
+                        type="submit"
+                        form="delete-table-form"
+                        class="btn btn-outline-danger btn-sm"
+                        onclick="return confirm('Delete this table and all linked series and values? This cannot be undone.');"
+                    >
+                        Delete Table
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <div class="row g-2 align-items-center mb-3">
@@ -130,6 +142,15 @@
         </div>
 
         <button type="submit" class="btn btn-primary mt-3">Save Changes</button>
+    </form>
+    <form
+        method="POST"
+        action="{{ url_for('admin.delete_table_from_edit_titles') }}"
+        id="delete-table-form"
+        class="d-none"
+    >
+        <input type="hidden" name="selected_category" value="{{ selected_category }}">
+        <input type="hidden" name="selected_table_id" value="{{ selected_table.id }}">
     </form>
     {% else %}
     <div class="alert alert-info">No table is available for the selected sector.</div>

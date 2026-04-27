@@ -5,6 +5,7 @@ import plotly.express as px
 from data_provider.sql_data import SQLDataProvider
 from utils.plot_chart import plot_pie_chart, plot_bar_chart, plot_two_pie_charts_px, plot_two_bar_charts_px
 from utils.dashboard_settings import get_dashboard_settings, get_overview_metrics
+from utils.plotly_download import build_plotly_download_config
 from auth.models import normalize_series_color, pastel_continuous_palette
 from utils.unit_handler import unit_detect
 
@@ -104,6 +105,7 @@ def register_overview_callbacks(app, provider):
 
     @app.callback(
         Output('overview-chart', 'figure'),
+        Output('overview-chart', 'config'),
         Input('scenario-dropdown', 'value'),
         Input('start-year-dropdown', 'value'),
         Input('end-year-dropdown', 'value'),
@@ -112,16 +114,24 @@ def register_overview_callbacks(app, provider):
         Input('unit-dropdown-overview', 'value')
     )
     def update_overview_chart(scenario, year_start, year_end, metric, chart_type, unit):
+        config = build_plotly_download_config(
+            "overview",
+            scenario,
+            metric,
+            year_start,
+            year_end,
+        )
+
         metric_config, _, _ = _get_overview_metric_config(metric)
         if not metric_config or not scenario or year_start is None or year_end is None:
-            return px.bar(title="No overview metric available")
+            return px.bar(title="No overview metric available"), config
 
         table_id = metric_config.get("table_id")
         selected_series_titles = set(metric_config.get("series_titles") or [])
         divide_by = metric_config.get("divide_by") or 1.0
 
         if not table_id:
-            return px.bar(title="Overview metric is missing its source table")
+            return px.bar(title="Overview metric is missing its source table"), config
 
         label = unit
         data_base = provider.get_filtered_df(table_id, scenario, [year_start, year_start])
@@ -153,4 +163,4 @@ def register_overview_callbacks(app, provider):
         else:
             fig = px.bar(title=metric)
 
-        return fig
+        return fig, config

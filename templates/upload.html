@@ -7,10 +7,7 @@
             <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-outline-secondary">
                 ← Back
             </a>
-        {% else %}
-            <a href="{{ url_for('user.user_panel') }}" class="btn btn-outline-secondary">
-                ← Back
-            </a>
+        
         {% endif %}
     {% endif %}
 </div>
@@ -25,17 +22,66 @@
         {% endfor %}
       {% endif %}
     {% endwith %}
-    <p>
-      Please upload a file that contains the following columns: 
-      <ul>
-        <li>tableName</li>
-        <li>seriesName</li>
-        <li>label</li>
-        <li>Yearly data columns ranging from  for example 2018 to 2050</li>
-      </ul>
-      It is assumed that each tableName,label combination is unique, and that each tableName has its own associated seriesNames. However, the same seriesName may be used across different tables. Ensure that each row is properly structured so the data can be processed correctly.
-    </p>
     <form method="POST" enctype="multipart/form-data">
+        <div class="mb-4">
+            <label class="form-label d-block"><strong>Choose Upload Format</strong></label>
+
+            <div class="form-check border rounded p-3 mb-3">
+                <input
+                    class="form-check-input"
+                    type="radio"
+                    name="upload_format"
+                    id="upload-format-table-series-year"
+                    value="table-series-year"
+                    {% if selected_upload_format == "table-series-year" %}checked{% endif %}
+                    required
+                >
+                <label class="form-check-label w-100" for="upload-format-table-series-year">
+                    <strong>Format 1: Scenario based</strong>
+                    <div class="text-muted small mt-1">
+                        Upload one CSV file, including all tables for a scenario, with <code>tableName</code>, <code>seriesName</code>, <code>label</code>, and yearly columns like <code>2018</code>, <code>2019</code>, <code>2050</code>.
+                    </div>
+                </label>
+            </div>
+
+            <div class="form-check border rounded p-3 mb-3">
+                <input
+                    class="form-check-input"
+                    type="radio"
+                    name="upload_format"
+                    id="upload-format-placeholder"
+                    value="format-2"
+                >
+                <label class="form-check-label w-100" for="upload-format-placeholder">
+                    <strong>Format 2: Table based</strong>
+                    <div class="text-muted small mt-1">
+                        Placeholder for the next step. This option is shown now for review, but it is not wired up yet.
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <div id="format-help-table-series-year" class="border rounded p-3 mb-4">
+            <h5 class="mb-3">Format 1 Requirements</h5>
+            <p class="mb-2">The uploaded file must be a <code>.csv</code> file and must include:</p>
+            <ul class="mb-2">
+                <li>Exactly one <code>.csv</code> file</li>
+                <li><code>tableName</code></li>
+                <li><code>seriesName</code></li>
+                <li><code>label</code></li>
+                <li>One or more yearly data columns such as <code>2018</code> to <code>2050</code></li>
+            </ul>
+            <p class="mb-0">
+                Only these columns are allowed in this format. Rows cannot contain empty values. If a required column is missing, a year column is missing, a cell is empty, or a yearly value is not numeric, the user will receive a specific error message.
+            </p>
+        </div>
+
+        <div id="format-help-placeholder" class="border rounded p-3 mb-4 d-none">
+            <h5 class="mb-3">Format 2 Preview</h5>
+            <p class="mb-0">
+                This second format is not enabled yet. We can define and connect its validation rules in the next step.
+            </p>
+        </div>
 
         <div class="mb-3">
             <label class="form-label">Scenario Name</label>
@@ -43,9 +89,9 @@
         </div>
 
         <div class="mb-3">
-            <label class="form-label">Upload CSV Files</label>
-            <input type="file" class="form-control" id="scenario-files-input" name="files" multiple accept=".csv" required>
-            <small class="text-muted">You can select CSV file</small>
+            <label class="form-label">Upload CSV File</label>
+            <input type="file" class="form-control" id="scenario-files-input" name="files" accept=".csv" required>
+            <small class="text-muted">Choose one CSV file only.</small>
         </div>
 
         <button type="submit" class="btn btn-primary">
@@ -59,7 +105,21 @@
   (function () {
     const fileInput = document.getElementById("scenario-files-input");
     const nameInput = document.getElementById("scenario-name-input");
+        const formatOneInput = document.getElementById("upload-format-table-series-year");
+        const formatTwoInput = document.getElementById("upload-format-placeholder");
+        const formatOneHelp = document.getElementById("format-help-table-series-year");
+        const formatTwoHelp = document.getElementById("format-help-placeholder");
     if (!fileInput || !nameInput) return;
+
+        function toggleFormatHelp() {
+          const showFormatOne = !formatTwoInput || !formatTwoInput.checked;
+          if (formatOneHelp) {
+            formatOneHelp.classList.toggle("d-none", !showFormatOne);
+          }
+          if (formatTwoHelp) {
+            formatTwoHelp.classList.toggle("d-none", showFormatOne);
+          }
+        }
 
     fileInput.addEventListener("change", function () {
       const currentName = (nameInput.value || "").trim();
@@ -77,6 +137,14 @@
         nameInput.value = autoName;
       }
     });
+
+        if (formatOneInput) {
+          formatOneInput.addEventListener("change", toggleFormatHelp);
+        }
+        if (formatTwoInput) {
+          formatTwoInput.addEventListener("change", toggleFormatHelp);
+        }
+        toggleFormatHelp();
   })();
 </script>
 {% endblock %}

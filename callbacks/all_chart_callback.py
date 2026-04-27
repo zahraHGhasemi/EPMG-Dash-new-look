@@ -9,7 +9,6 @@ session = db.session
 
 
 def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session)):
-
     @app.callback(
         Output("url", "href"),
         Input("url", "href"),

@@ -16,6 +16,7 @@ from auth.models import Study, normalize_series_color, pastel_continuous_palette
 
 from auth.models import db
 from urllib.parse import urlparse, parse_qs
+from utils.plotly_download import build_plotly_download_config
 session = db.session
 def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=session)):
     @app.callback(
@@ -101,6 +102,7 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
 
     @app.callback(
         Output('compare-chart', 'figure'),
+        Output('compare-chart', 'config'),
         Input('subcategory-dropdown', 'value'),
         Input('category-dropdown', 'value'),
         Input('scenario-chart-dropdown', 'value'),
@@ -114,6 +116,22 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
 
     )
     def update_graph(table_name,category, scenario, year_range, chart_types, compare_scenario, difference_option, unit,compare_value, color_values):
+        year_start, year_end = (year_range or [None, None])[:2]
+        suffix = None
+        if compare_value and compare_scenario:
+            suffix = f"vs_{compare_scenario}"
+            if difference_option == 'yes':
+                suffix = f"{suffix}_difference"
+
+        config = build_plotly_download_config(
+            "charts",
+            scenario,
+            table_name,
+            year_start,
+            year_end,
+            suffix=suffix,
+        )
+
         # df_user = None
         # if data_mode == "user" and has_request_context():
         #     df_user = get_user_df()
@@ -212,10 +230,10 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
             # fig.update_layout(title="Grouped Stacked Bar Chart")
                 else:
                     fig = plot_chart(df_merged, chart_types, color_map= color_map, y_col='Difference',table_title=table_name)
-            return fig
+            return fig, config
         else:
             
-            return plot_chart(df, chart_types, color_map= color_map, table_title=table_name)
+            return plot_chart(df, chart_types, color_map= color_map, table_title=table_name), config
     @app.callback(
         Output("download-dataframe-csv", "data"),
         Input("btn-download", "n_clicks"),

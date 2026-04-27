@@ -1,3 +1,8 @@
+import re
+
+import pandas as pd
+from sqlalchemy import select
+
 from auth.models import (
     db,
     Table,
@@ -9,10 +14,10 @@ from auth.models import (
     pastel_continuous_palette,
     next_available_series_color,
 )
-# from utils.config_loader import chartsTitle, seriesTitle
-import pandas as pd
 
-from sqlalchemy import select
+REQUIRED_UPLOAD_COLUMNS = ("tableName", "seriesName", "label")
+SUPPORTED_UPLOAD_FORMAT = "table-series-year"
+YEAR_COLUMN_RE = re.compile(r"^\d{4}$")
 
 def get_or_create_scenario(
     scenario_name: str,
@@ -219,7 +224,128 @@ def ensure_scenario_not_exists(scenario_name, session):
             f"Scenario '{scenario_name}' already exists. "
             "Delete it before uploading a new one."
         )
-    
+
+
+def validate_upload_format(upload_format: str) -> str:
+    selected_format = (upload_format or "").strip()
+    if not selected_format:
+        raise ValueError("Please choose an upload format before selecting a file.")
+
+    if selected_format != SUPPORTED_UPLOAD_FORMAT:
+        raise ValueError(
+            "The selected upload format is not available yet. "
+            "Please choose 'Format 1: tableName + seriesName + label + yearly data'."
+        )
+
+    return selected_format
+
+
+def _is_year_column(column_name) -> bool:
+    return bool(YEAR_COLUMN_RE.match(str(column_name).strip()))
+
+
+def _find_blank_rows(series: pd.Series) -> list[int]:
+    text_values = series.fillna("").astype(str).str.strip()
+    return (text_values.index[text_values.eq("")] + 2).tolist()
+
+
+def _find_invalid_numeric_rows(series: pd.Series) -> list[int]:
+    text_values = series.fillna("").astype(str).str.strip()
+    numeric_values = pd.to_numeric(text_values, errors="coerce")
+    invalid_mask = text_values.ne("") & numeric_values.isna()
+    return (text_values.index[invalid_mask] + 2).tolist()
+
+
+def _format_row_numbers(row_numbers: list[int]) -> str:
+    joined = ", ".join(str(row) for row in row_numbers[:5])
+    suffix = "..." if len(row_numbers) > 5 else ""
+    return f"{joined}{suffix}"
+
+
+def validate_uploaded_dataframe(df: pd.DataFrame, filename: str) -> pd.DataFrame:
+    if df.empty:
+        raise ValueError(f"'{filename}' is empty. Please upload a CSV file with data rows.")
+
+    columns = [str(col).strip() for col in df.columns]
+    df = df.copy()
+    df.columns = columns
+
+    duplicate_columns = sorted({col for col in columns if columns.count(col) > 1})
+    if duplicate_columns:
+        joined = ", ".join(duplicate_columns)
+        raise ValueError(f"'{filename}' has duplicate column names: {joined}.")
+
+    missing_columns = [col for col in REQUIRED_UPLOAD_COLUMNS if col not in columns]
+    if missing_columns:
+        joined = ", ".join(missing_columns)
+        raise ValueError(f"'{filename}' is missing required column(s): {joined}.")
+
+    year_columns = [col for col in columns if _is_year_column(col)]
+    if not year_columns:
+        raise ValueError(
+            f"'{filename}' must include at least one yearly data column such as 2018 or 2050."
+        )
+
+    unexpected_columns = [
+        col for col in columns if col not in REQUIRED_UPLOAD_COLUMNS and col not in year_columns
+    ]
+    if unexpected_columns:
+        joined = ", ".join(unexpected_columns)
+        raise ValueError(
+            f"'{filename}' has invalid column(s): {joined}. "
+            "Only tableName, seriesName, label, and 4-digit year columns are allowed."
+        )
+
+    for column in REQUIRED_UPLOAD_COLUMNS:
+        blank_rows = _find_blank_rows(df[column])
+        if blank_rows:
+            raise ValueError(
+                f"'{filename}' has blank values in '{column}' at CSV row(s): "
+                f"{_format_row_numbers(blank_rows)}."
+            )
+
+    for year_column in year_columns:
+        blank_rows = _find_blank_rows(df[year_column])
+        if blank_rows:
+            raise ValueError(
+                f"'{filename}' has empty values in yearly column '{year_column}' at CSV row(s): "
+                f"{_format_row_numbers(blank_rows)}."
+            )
+
+        invalid_rows = _find_invalid_numeric_rows(df[year_column])
+        if invalid_rows:
+            raise ValueError(
+                f"'{filename}' has non-numeric values in yearly column '{year_column}' "
+                f"at CSV row(s): {_format_row_numbers(invalid_rows)}."
+            )
+
+    return df
+
+
+def load_and_validate_uploaded_csvs(files) -> pd.DataFrame:
+    validated_frames = []
+
+    for file in files:
+        filename = (getattr(file, "filename", "") or "uploaded file").strip()
+        if not filename.lower().endswith(".csv"):
+            raise ValueError(f"'{filename}' is not a CSV file. Please upload files ending in .csv.")
+
+        try:
+            df = pd.read_csv(file.stream)
+        except pd.errors.EmptyDataError as exc:
+            raise ValueError(f"'{filename}' is empty. Please upload a CSV file with data rows.") from exc
+        except pd.errors.ParserError as exc:
+            raise ValueError(
+                f"'{filename}' could not be read as a CSV file. Please check the file format."
+            ) from exc
+
+        validated_frames.append(validate_uploaded_dataframe(df, filename))
+
+    if not validated_frames:
+        raise ValueError("At least one CSV file is required.")
+
+    return pd.concat(validated_frames, ignore_index=True)
+
 
 from sqlalchemy.orm import sessionmaker
 
@@ -251,6 +377,6 @@ def process_uploaded_csv(
 
         bulk_insert_values(values_df, engine)
     finally:
-        session.close
+        session.close()
 
 
