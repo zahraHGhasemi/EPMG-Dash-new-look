@@ -5,7 +5,6 @@ This project is a Flask and Dash application for TIM outputs. It combines:
 - Flask for routing, authentication, and admin pages
 - Dash for interactive charts and dashboard views
 - SQLAlchemy for database access and application models
-- JSON first time configuration files for chart labels, table metadata, and dashboard defaults
 
 The app appears to support multiple studies and scenarios, with separate admin tools for maintaining dashboard content and settings.
 
@@ -14,15 +13,14 @@ The app appears to support multiple studies and scenarios, with separate admin t
 
 - Interactive dashboard pages for overview, chart comparison, and Sankey analysis
 - Authentication and role-based access flows
-- Admin pages for editing about study, editing titles, overview content, default values, dictionaries, and study/scenario data
+- Admin pages for adding or deleting data, editing about study, editing titles, overview content, default values, dictionaries, and study/scenario data
 - Config-driven chart and table labels
-- Automated tests for selected admin functionality
 
 ## Project Structure
 
 This is a high-level guide to the main folders:
 
-- `auth/`: Flask blueprints, authentication routes, admin routes, user routes, and database models
+- `auth/`: Flask blueprints, authentication routes, admin routes, and database models
 - `callbacks/`: Dash callback registration and interaction logic for each dashboard section
 - `components/`: Reusable Dash layout components for tabs, charts, navigation, and content blocks
 - `config/`: JSON and Python configuration files such as chart titles, table info, constants, and dashboard settings
@@ -73,20 +71,4 @@ python app.py
 
 The app runs through Flask and initializes the Dash dashboard inside the same server.
 
-## Testing
 
-Run the test suite with:
-
-```powershell
-pytest
-```
-
-## Documentation Plan
-
-To improve documentation step by step, a good order is:
-
-1. Main project `README.md`
-2. Folder-level summaries
-3. Function docstrings for core modules
-4. Cleanup of commented-out code and unused imports
-5. Test/documentation updates where behavior is unclear

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-outline-secondary">
+        ← Back
+    </a>
+</div>
+
+<div class="container mt-4">
+    <h2 class="mb-3">Manage Table Upload Rules</h2>
+    <p class="text-muted mb-4">
+        Add a new derived <code>tableName</code> to <code>table_info.json</code> for Format 2 uploads.
+    </p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="border rounded p-4">
+        <p class="text-muted mb-3">
+            <code>source name</code> is the source CSV name that the rule reads from. For example, one source CSV such as <code>TRA_Passenger_Land_Mode.csv</code> can be used to build <code>TRA_Passenger_Land_Mode</code>, <code>TRA_Passenger_Land_Mode-S</code>, <code>TRA_Passenger_Land_Mode-M</code>, or <code>TRA_Passenger_Land_Mode-L</code> with different filters.
+        </p>
+
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">New tableName</label>
+                    <input type="text" class="form-control" name="new_table_name" placeholder="e.g. MY_NEW_TABLE" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Source name (source CSV name)</label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        name="new_table_source_name"
+                        list="source-table-options"
+                        placeholder="e.g. TRA_Passenger_Land_Mode"
+                        required
+                    >
+                    <datalist id="source-table-options">
+                        {% for source_table in available_source_table_options %}
+                            <option value="{{ source_table }}"></option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">keepDimensions</label>
+                    <input type="text" class="form-control" name="new_table_keep_dimensions" placeholder="e.g. Commodity" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">defaultUnit</label>
+                    <input type="text" class="form-control" name="new_table_default_unit" placeholder="e.g. PJ" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">aggregation</label>
+                    <input type="text" class="form-control" name="new_table_aggregation" value="sum" required>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">filter column</label>
+                    <input type="text" class="form-control" name="new_table_filter_column" placeholder="Optional">
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">filter values</label>
+                    <input type="text" class="form-control" name="new_table_filter_values" placeholder="Optional, comma separated">
+                </div>
+
+                <div class="col-md-6">
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" value="1" id="new-table-reverse-sign" name="new_table_reverse_sign">
+                        <label class="form-check-label" for="new-table-reverse-sign">
+                            reverseSign
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" value="1" id="new-table-cumulate" name="new_table_cumulate">
+                        <label class="form-check-label" for="new-table-cumulate">
+                            cumulate
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Add Table</button>
+                <a href="{{ url_for('admin.upload_scenario', upload_format='table-raw-by-table') }}" class="btn btn-outline-secondary">
+                    Back To Format 2 Upload
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -9,12 +9,14 @@ session = db.session
 
 
 def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session)):
+    """Register Dash callbacks that keep the all-charts filters and URL in sync."""
     @app.callback(
         Output("url", "href"),
         Input("url", "href"),
         prevent_initial_call=True
     )
     def ensure_study_in_url(href):
+        """Add a default or latest study_id to the URL when one is missing."""
         if not href:
             return no_update
 
@@ -45,6 +47,7 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
         State("scenario-chart-dropdown", "value")
     )
     def update_scenario_dropdown(href, current_value):
+        """Populate scenario options for the URL study and preserve the best valid selection."""
         if not href:
             return [], None
 
@@ -82,6 +85,7 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
         State("category-dropdown", "value")
     )
     def update_category_options(selected_scenario, href, current_value):
+        """Populate sector options for the selected scenario and choose the active sector."""
         categories = provider.get_categories(selected_scenario)
 
         selected_from_url = None
@@ -112,6 +116,7 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
         State("subcategory-dropdown", "value")
     )
     def update_subcategory_options(category, selected_scenario, href, current_value):
+        """Populate subsector options for the active sector and scenario."""
         subcategories = provider.get_subcategories(category, selected_scenario)
         legacy_default_labels = {
             "Domestic CO2 Emissions by Sector",
@@ -147,6 +152,7 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
         State('unit-dropdown', 'value')
     )
     def update_unit(table_name, category, scenario, year_range, current_value):
+        """Choose valid display-unit options for the selected chart table."""
         table_id = provider.get_table_id(table_name, category)
         df_unit = provider.get_labels(table_id)
 
@@ -175,6 +181,7 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
         prevent_initial_call=True,
     )
     def sync_chart_filters_to_url(scenario, sector, subsector, tab, href):
+        """Write chart filter selections into the URL query string while on the charts tab."""
         if tab != "charts" or not href:
             return no_update
 

@@ -4,12 +4,13 @@ from utils.dashboard_settings import get_dashboard_settings
 
 
 def register_tab_content_callbacks(app):
-
+    """Register callbacks for tab content visibility and URL synchronization."""
     @app.callback(
         Output("tabs", "value"),
         Input("url", "href"),
     )
     def set_tab_from_url(href):
+        """Set the active tab based on the URL query parameters."""
         default_tab = get_dashboard_settings()["default_tab"]
         if not href:
             return default_tab
@@ -32,6 +33,7 @@ def register_tab_content_callbacks(app):
         prevent_initial_call=True
     )
     def update_url_on_tab_click(tab_value, href):
+        """Update the URL query parameters when a tab is clicked, preserving existing parameters."""
         # Keep existing query params and only update tab/study_id defaults.
         if not href:
             return "?" + urlencode({"study_id": "1", "tab": tab_value})
@@ -57,6 +59,7 @@ def register_tab_content_callbacks(app):
         Input("tabs", "value"),
     )
     def toggle_tab_panes(tab):
+        """Toggle the visibility of tab panes based on the active tab."""
         hidden = {"display": "none"}
         visible = {"display": "block"}
         return (

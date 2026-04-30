@@ -1,17 +1,13 @@
 from dash import html
 from dash import dcc
-# from utils.plot_chart import plot_chart
 import dash_bootstrap_components as dbc
-# from utils.dataframe_melter import get_scenarios
 from components.all_charts import options_layout
-# from utils.get_data import get_scenarios,get_user_df
-from data_provider.dataframe_data import DataFrameProvider
-from data_provider.sql_data import SQLDataProvider
-# df_override = get_user_df()  # Replace with actual DataFrame if needed
-# scenarios = get_scenarios(df_override=df_override)
+
 
 
 def compare_charts_layout():
+    """Generate the layout for the Compare Charts section and color layout accordion in the charts tab, which includes options for selecting scenarios to compare and a graph to display the comparison.
+    It also includes a download button for exporting the comparison data as CSV."""
     base = options_layout()
     base.children.append(
         dbc.Accordion([
@@ -25,7 +21,7 @@ def compare_charts_layout():
                                 {'label': 'Yes', 'value': 1},
                                 {'label': 'No', 'value': 0},
                             ],
-                            value=0,  # Default selection
+                            value=0,  
                             inline=True,
                             persistence=True,
                             persistence_type='session'
@@ -38,8 +34,7 @@ def compare_charts_layout():
                             clearable=False,
                             persistence=True,
                             persistence_type='session',
-                            # options=[{'label': s, 'value': s} for s in scenarios],
-                            # value=scenarios[1] if len(scenarios) > 1 else None,
+                            
                         ),
                     ], width=6),
                     dbc.Col([
@@ -50,7 +45,7 @@ def compare_charts_layout():
                                 {'label': 'Yes', 'value': 'yes'},
                                 {'label': 'No', 'value': 'no'},
                             ],
-                            value='no',  # Default selection
+                            value='no',  
                             inline=True,
                             persistence=True,
                             persistence_type='session'
@@ -89,9 +84,6 @@ def compare_charts_layout():
                     size="lg",            # spinner size
                     type="border"         # or "grow"
                 )
-                # dcc.Graph(id='compare-chart',
-                #           style={'height': '600px'},
-                #         config={'responsive': True})
             ])
         ])
     )

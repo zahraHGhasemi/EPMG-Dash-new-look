@@ -50,12 +50,13 @@
                     type="radio"
                     name="upload_format"
                     id="upload-format-placeholder"
-                    value="format-2"
+                    value="table-raw-by-table"
+                    {% if selected_upload_format == "table-raw-by-table" %}checked{% endif %}
                 >
                 <label class="form-check-label w-100" for="upload-format-placeholder">
                     <strong>Format 2: Table based</strong>
                     <div class="text-muted small mt-1">
-                        Placeholder for the next step. This option is shown now for review, but it is not wired up yet.
+                        Upload one raw CSV file for a selected dashboard table. The file may contain multiple scenarios.
                     </div>
                 </label>
             </div>
@@ -77,21 +78,82 @@
         </div>
 
         <div id="format-help-placeholder" class="border rounded p-3 mb-4 d-none">
-            <h5 class="mb-3">Format 2 Preview</h5>
+            <h5 class="mb-3">Format 2 Requirements</h5>
+            <p class="mb-2">Choose one or more dashboard tables, then upload the unique source <code>.csv</code> files they require.</p>
+            <ul class="mb-2">
+                <li>One or more selected tables</li>
+                <li>The unique source <code>.csv</code> files shown below</li>
+                <li><code>Scenario</code>, <code>Period</code>, and <code>Pv</code> columns</li>
+                <li>The table-specific dimensions required by the selected table definition</li>
+            </ul>
             <p class="mb-0">
-                This second format is not enabled yet. We can define and connect its validation rules in the next step.
+                Each scenario found in the file will be uploaded separately. Existing scenarios are allowed. If any selected table already has data for a scenario, the admin can choose to overwrite those selected tables.
             </p>
+            <div class="mt-3">
+                <a href="{{ url_for('admin.manage_table_upload_rules') }}" class="btn btn-outline-primary btn-sm">
+                    Add Or Edit Table Upload Rules
+                </a>
+            </div>
         </div>
 
-        <div class="mb-3">
+        <div class="mb-3" id="scenario-name-group">
             <label class="form-label">Scenario Name</label>
             <input type="text" class="form-control" id="scenario-name-input" name="scenario_name" required>
+        </div>
+
+        <div class="mb-3 d-none" id="table-upload-name-group">
+            <label class="form-label">Tables To Build</label>
+            <div class="border rounded p-3" style="max-height: 280px; overflow-y: auto;">
+                {% for table_name in available_table_upload_options %}
+                    <div class="form-check">
+                        <input
+                            class="form-check-input table-upload-checkbox"
+                            type="checkbox"
+                            value="{{ table_name }}"
+                            id="table-upload-name-{{ loop.index }}"
+                            name="table_upload_names"
+                        >
+                        <label class="form-check-label" for="table-upload-name-{{ loop.index }}">
+                            {{ table_name }}
+                        </label>
+                    </div>
+                {% endfor %}
+            </div>
+            <small class="text-muted">Choose all derived dashboard tables you want to build from the uploaded source files.</small>
+        </div>
+
+        <div class="mb-3 d-none" id="required-source-files-group">
+            <label class="form-label">Required Source CSV Files</label>
+            <div class="border rounded p-3 bg-light">
+                <p class="mb-2 text-muted" id="required-source-files-empty">
+                    Select one or more tables to see which unique source CSV files are needed.
+                </p>
+                <ul class="mb-0" id="required-source-files-list"></ul>
+            </div>
+        </div>
+
+        <div class="mb-3 d-none" id="overwrite-existing-tables-group">
+            <div class="form-check">
+                <input
+                    class="form-check-input"
+                    type="checkbox"
+                    value="1"
+                    id="overwrite-existing-tables-input"
+                    name="overwrite_existing_tables"
+                >
+                <label class="form-check-label" for="overwrite-existing-tables-input">
+                    Overwrite existing selected tables for any scenario already in the database
+                </label>
+            </div>
+            <small class="text-muted">
+                Leave this unticked to protect existing table data. If a selected scenario already contains one of these tables, the upload will stop and warn you first.
+            </small>
         </div>
 
         <div class="mb-3">
             <label class="form-label">Upload CSV File</label>
             <input type="file" class="form-control" id="scenario-files-input" name="files" accept=".csv" required>
-            <small class="text-muted">Choose one CSV file only.</small>
+            <small class="text-muted" id="file-input-help-text">Choose one CSV file only.</small>
         </div>
 
         <button type="submit" class="btn btn-primary">
@@ -99,29 +161,106 @@
         </button>
 
     </form>
-
 </div>
 <script>
   (function () {
     const fileInput = document.getElementById("scenario-files-input");
     const nameInput = document.getElementById("scenario-name-input");
-        const formatOneInput = document.getElementById("upload-format-table-series-year");
-        const formatTwoInput = document.getElementById("upload-format-placeholder");
-        const formatOneHelp = document.getElementById("format-help-table-series-year");
-        const formatTwoHelp = document.getElementById("format-help-placeholder");
+    const formatOneInput = document.getElementById("upload-format-table-series-year");
+    const formatTwoInput = document.getElementById("upload-format-placeholder");
+    const formatOneHelp = document.getElementById("format-help-table-series-year");
+    const formatTwoHelp = document.getElementById("format-help-placeholder");
+    const scenarioNameGroup = document.getElementById("scenario-name-group");
+    const tableUploadNameGroup = document.getElementById("table-upload-name-group");
+    const tableUploadCheckboxes = Array.from(document.querySelectorAll(".table-upload-checkbox"));
+    const requiredSourceFilesGroup = document.getElementById("required-source-files-group");
+    const requiredSourceFilesList = document.getElementById("required-source-files-list");
+    const requiredSourceFilesEmpty = document.getElementById("required-source-files-empty");
+    const overwriteExistingTablesGroup = document.getElementById("overwrite-existing-tables-group");
+    const fileInputHelpText = document.getElementById("file-input-help-text");
+    const tableUploadSourceMap = {{ table_upload_source_map | tojson }};
     if (!fileInput || !nameInput) return;
 
-        function toggleFormatHelp() {
-          const showFormatOne = !formatTwoInput || !formatTwoInput.checked;
-          if (formatOneHelp) {
-            formatOneHelp.classList.toggle("d-none", !showFormatOne);
-          }
-          if (formatTwoHelp) {
-            formatTwoHelp.classList.toggle("d-none", showFormatOne);
-          }
-        }
+    function isFormatTwoSelected() {
+      return !!formatTwoInput && formatTwoInput.checked;
+    }
+
+    function getSelectedTableNames() {
+      return tableUploadCheckboxes
+        .filter(function (checkbox) { return checkbox.checked; })
+        .map(function (checkbox) { return checkbox.value; });
+    }
+
+    function updateRequiredSourceFiles() {
+      if (!requiredSourceFilesList || !requiredSourceFilesEmpty) {
+        return;
+      }
+
+      const selectedTables = getSelectedTableNames();
+      const sourceFiles = Array.from(
+        new Set(
+          selectedTables.flatMap(function (tableName) {
+            return tableUploadSourceMap[tableName] || [];
+          })
+        )
+      ).sort();
+
+      requiredSourceFilesList.innerHTML = "";
+
+      if (sourceFiles.length === 0) {
+        requiredSourceFilesEmpty.classList.remove("d-none");
+        return;
+      }
+
+      requiredSourceFilesEmpty.classList.add("d-none");
+      sourceFiles.forEach(function (sourceName) {
+        const listItem = document.createElement("li");
+        listItem.textContent = sourceName + ".csv";
+        requiredSourceFilesList.appendChild(listItem);
+      });
+    }
+
+    function toggleFormatHelp() {
+      const showFormatOne = !isFormatTwoSelected();
+      if (formatOneHelp) {
+        formatOneHelp.classList.toggle("d-none", !showFormatOne);
+      }
+      if (formatTwoHelp) {
+        formatTwoHelp.classList.toggle("d-none", showFormatOne);
+      }
+      if (scenarioNameGroup) {
+        scenarioNameGroup.classList.toggle("d-none", !showFormatOne);
+      }
+      if (tableUploadNameGroup) {
+        tableUploadNameGroup.classList.toggle("d-none", showFormatOne);
+      }
+      if (requiredSourceFilesGroup) {
+        requiredSourceFilesGroup.classList.toggle("d-none", showFormatOne);
+      }
+      if (overwriteExistingTablesGroup) {
+        overwriteExistingTablesGroup.classList.toggle("d-none", showFormatOne);
+      }
+      nameInput.required = showFormatOne;
+      if (!showFormatOne) {
+        nameInput.value = "";
+      }
+      tableUploadCheckboxes.forEach(function (checkbox) {
+        checkbox.required = false;
+      });
+      fileInput.multiple = !showFormatOne;
+      if (fileInputHelpText) {
+        fileInputHelpText.textContent = showFormatOne
+          ? "Choose one CSV file only."
+          : "Choose the unique source CSV files listed above.";
+      }
+      updateRequiredSourceFiles();
+    }
 
     fileInput.addEventListener("change", function () {
+      if (isFormatTwoSelected()) {
+        return;
+      }
+
       const currentName = (nameInput.value || "").trim();
       if (currentName) {
         return;
@@ -138,15 +277,16 @@
       }
     });
 
-        if (formatOneInput) {
-          formatOneInput.addEventListener("change", toggleFormatHelp);
-        }
-        if (formatTwoInput) {
-          formatTwoInput.addEventListener("change", toggleFormatHelp);
-        }
-        toggleFormatHelp();
+    if (formatOneInput) {
+      formatOneInput.addEventListener("change", toggleFormatHelp);
+    }
+    if (formatTwoInput) {
+      formatTwoInput.addEventListener("change", toggleFormatHelp);
+    }
+    tableUploadCheckboxes.forEach(function (checkbox) {
+      checkbox.addEventListener("change", updateRequiredSourceFiles);
+    });
+    toggleFormatHelp();
   })();
 </script>
 {% endblock %}
-
-

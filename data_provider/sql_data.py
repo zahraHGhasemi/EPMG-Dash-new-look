@@ -1,102 +1,22 @@
-# from utils.database_utils import read_sql
-# from config.constants import CATEGORY_DICT
-
-
-# class SQLDataProvider:
-#     def __init__(self, table_name="observations"):
-#         self.table = table_name
-
-#     def get_scenarios(self):
-#         query = f'''
-#             SELECT DISTINCT "Scenario"
-#             FROM {self.table}
-#             ORDER BY "Scenario"
-#         '''
-#         df = read_sql(query)
-#         return df["Scenario"].dropna().tolist()
-
-#     def get_categories(self):
-#         query = f'''
-#             SELECT DISTINCT "cat"
-#             FROM {self.table}
-#         '''
-#         df = read_sql(query)
-#         return df["cat"].dropna().tolist()
-
-#     def get_subcategories(self, category_label):
-#         if not category_label:
-#             return []
-
-#         query = f'''
-#             SELECT DISTINCT "tableTitle"
-#             FROM {self.table}
-#             WHERE "cat" = :cat
-#         '''
-#         df = read_sql(query, params={"cat": category_label.lower()})
-#         return df["tableTitle"].dropna().tolist()
-
-#     def get_table_id(self, table_title, category_label):
-#         if not category_label:
-#             return None
-
-#         query = f'''
-#             SELECT "tableName"
-#             FROM {self.table}
-#             WHERE "tableTitle" = :title
-#               AND "cat" = :cat
-#             LIMIT 1
-#         '''
-#         df = read_sql(query, params={
-#             "title": table_title,
-#             "cat": category_label.lower()
-#         })
-#         return df.iloc[0, 0] if not df.empty else None
-#     def get_labels(self, table_id, scenario, year_range):
-#         query = f'''
-#             SELECT *
-#             FROM {self.table}
-#             WHERE "tableName" = :table
-#               AND "Scenario" = :scenario
-#               AND "Year" BETWEEN :y0 AND :y1
-#             ORDER BY "seriesName", "Year"
-#         '''
-#         df = read_sql(query, params={
-#             "table": table_id,
-#             "scenario": scenario,
-#             "y0": year_range[0],
-#             "y1": year_range[1],
-#         })
-#         return df["label"].unique().tolist()
-#     def get_filtered_df(self, table_id, scenario, year_range):
-#         query = f'''
-#             SELECT *
-#             FROM {self.table}
-#             WHERE "tableName" = :table
-#               AND "Scenario" = :scenario
-#               AND "Year" BETWEEN :y0 AND :y1
-#             ORDER BY "seriesName", "Year"
-#         '''
-#         return read_sql(query, params={
-#             "table": table_id,
-#             "scenario": scenario,
-#             "y0": year_range[0],
-#             "y1": year_range[1],
-#         })
-
-from auth.models import Scenario, StudyScenario, Table, Series, Year, Value, Study, db
+from auth.models import Scenario, StudyScenario, Table, Series, Value, Study
 from sqlalchemy import or_, select
 import pandas as pd
 
 class SQLDataProvider:
+    """
+    A data provider for fetching scenario, category, and table information from the database.
+    """
     def __init__(self, session):
         self.session = session
 
     def get_scenarios(self):
+        """Fetch all scenario names from the database."""
         rows = self.session.execute(
             select(Scenario.name).order_by(Scenario.name)
         ).all()
         return [name for (name,) in rows]
     def get_categories(self, scenario_name=None):
+        """Fetch category labels, optionally filtered by scenario name."""
         query = select(Table.category).distinct()
         if scenario_name:
             query = (
@@ -109,6 +29,7 @@ class SQLDataProvider:
         rows = self.session.execute(query.order_by(Table.category)).all()
         return [cat for (cat,) in rows]
     def get_subcategories(self, category_label, scenario_name=None):
+        """Fetch distinct table titles for a given category label, optionally filtered by scenario name."""
         if not category_label:
             return []
 
@@ -124,6 +45,7 @@ class SQLDataProvider:
         rows = self.session.execute(query.distinct().order_by(Table.title)).all()
         return [title for (title,) in rows]
     def get_table_id(self, table_title, category_label):
+        """Fetch the table ID for a given table title and category label."""
         row = self.session.execute(
             select(Table.id)
             .where(Table.title == table_title)
@@ -131,6 +53,7 @@ class SQLDataProvider:
         ).scalar_one_or_none()
         return row  # returns table_id or None
     def get_labels(self, table_id):
+        """Fetch series titles for a given table ID."""
         row = self.session.execute(
             select(Table.label)
             .where(Table.id == table_id)
@@ -140,6 +63,7 @@ class SQLDataProvider:
         return [label for (label,) in row]
     
     def get_filtered_df(self, table_id, scenario_name, year_range):
+        """Fetch a DataFrame of series titles, years, and values for a given table ID, scenario name, and year range."""
         scenario_id = self.session.execute(
             select(Scenario.id)
             .where(Scenario.name == scenario_name)
@@ -163,6 +87,7 @@ class SQLDataProvider:
         return df
     
     def get_series_titles(self, table_id):
+        """Fetch series titles for a given table ID."""
         rows = self.session.execute(
             select(Series.title)
             .where(Series.table_id == table_id)
@@ -170,6 +95,7 @@ class SQLDataProvider:
         ).all()
         return [title for (title,) in rows]
     def get_series_titles_with_colors(self, table_id):
+        """Fetch series titles and their associated colors for a given table ID."""
         rows = self.session.execute(
             select(Series.id, Series.title, Series.color)
             .where(Series.table_id == table_id)
@@ -177,6 +103,7 @@ class SQLDataProvider:
         ).all()
         return [{"id": series_id, "title": title, "color": color} for series_id, title, color in rows]
     def get_series_color_map_by_title(self, table_id):
+        """Fetch a mapping of series titles to their associated colors for a given table ID."""
         rows = self.session.execute(
             select(Series.title, Series.color)
             .where(Series.table_id == table_id)
@@ -184,6 +111,7 @@ class SQLDataProvider:
         ).all()
         return {title: color for title, color in rows if title and color}
     def get_series_color_map_by_list_titles(self, list_table_ids=None):
+        """Fetch a mapping of series titles to their associated colors for a list of table IDs."""
         rows = self.session.execute(
             select(Series.title, Series.color)
             .where(
@@ -198,6 +126,7 @@ class SQLDataProvider:
                 color_map[title] = color
         return color_map
     def get_table_id_by_name(self, table_name):
+        """Fetch the table ID for a given table name."""
         row = self.session.execute(
             select(Table.id)
             .where(Table.name == table_name)
@@ -206,6 +135,7 @@ class SQLDataProvider:
         return row  # returns table_id or None
     
     def get_studies_by_status(self, status):
+        """Fetch studies filtered by their status (e.g., 'recent', 'archive', 'ongoing')."""
         return (
             self.session.query(Study)
             .filter_by(status=status)
@@ -214,6 +144,7 @@ class SQLDataProvider:
         )
 
     def get_scenarios_for_study(self, study_id):
+        """Fetch scenarios associated with a given study ID."""
         return (
             self.session.query(Scenario)
             .join(StudyScenario)
@@ -222,6 +153,7 @@ class SQLDataProvider:
             .all()
         )
     def get_latest_recent_study(self):
+        """Fetch the most recent study with status 'recent'."""
         return (
             Study.query
             .filter(Study.status == "recent")
@@ -235,6 +167,7 @@ class SQLDataProvider:
     def get_ongoing_studies(self):
         return self.get_studies_by_status("ongoing")
     def check_table_include_name(self, scenario_name, category_prefix, name_substrings):
+        """Check if tables for a given scenario and category prefix include any of the specified substrings in their names."""
         scenario_id = self.session.execute(
         select(Scenario.id).where(Scenario.name == scenario_name)
         ).scalar_one_or_none()
@@ -261,11 +194,11 @@ class SQLDataProvider:
 
         result = self.session.execute(query).scalars().all()
         result.remove(category_prefix + '_' + 'FEC') if category_prefix + '_FEC' in result else None
-        # print(result, 'result')
         return result
     def get_table_title_by_name(self, table_name):
+        """Fetch the table title for a given table name."""
         row = self.session.execute(
             select(Table.title)
             .where(Table.name == table_name)
         ).scalar_one_or_none()
-        return row  # returns table_title or None
+        return row  

@@ -1,10 +1,10 @@
-import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
 from dash import html, dcc
 from utils.dashboard_settings import get_dashboard_settings
 
 
 def sankey_layout ():
+    """Generate the layout for the Sankey Diagram tab, which includes dropdowns for selecting scenario and title, a year range slider, and two graphs to display the Sankey diagrams."""
     settings = get_dashboard_settings()
     start_year = settings["start_year"]
     end_year = settings["end_year"]
@@ -18,10 +18,10 @@ def sankey_layout ():
                 html.Label("Year Range"),
                 dcc.RangeSlider(
                     id='year-sankey-slider',
-                    min=start_year, #all_data_melted['Year'].min(),
-                    max=end_year, #all_data_melted['Year'].max()-1,
+                    min=start_year, 
+                    max=end_year, 
                     value=[default_start_year, default_end_year],
-                    marks={str(year): str(year) for year in range(start_year, end_year + 1, 5)}, #range(all_data_melted['Year'].min(), all_data_melted['Year'].max(), 1)},
+                    marks={str(year): str(year) for year in range(start_year, end_year + 1, 5)},
                     step=1,
                     persistence=True,
                     persistence_type='session'
@@ -36,8 +36,7 @@ def sankey_layout ():
                     clearable=False,
                     persistence=True,
                     persistence_type='session',
-                    # options= [{'label': s, 'value': s} for s in scenarios],
-                    # value= scenarios[0] if len(scenarios) > 0 else None,
+                    
                 )
             ], width=6),
             dbc.Col([
@@ -45,11 +44,6 @@ def sankey_layout ():
                 dcc.Dropdown(
                     id="sankey_title_dropdown",
                     clearable=False,
-                    # options=[
-                    #     {'label': 'Primary Energy to Demand detailed', 'value': 0},
-                    #     {'label': 'Primary Energy to Final Energy', 'value': 1}
-                    # ],
-                    # value=sankey_mode,
                     persistence=True,
                     persistence_type='session'
                 )

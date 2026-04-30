@@ -10,7 +10,7 @@ from components.about import ABOUT_MARKDOWN_ID
 def register_about_callbacks(app):
     @app.callback(
         Output(ABOUT_MARKDOWN_ID, "children"),
-        Input("url", "search"),   # listens to ?study_id=...
+        Input("url", "search")
     )
     def load_about_from_db(search):
         qs = parse_qs((search or "").lstrip("?"))
@@ -28,5 +28,4 @@ def register_about_callbacks(app):
         if not about:
             return f"## {study_name}\n\n_No About content has been added for this study yet._"
 
-        # Stored as Markdown
         return about.description

@@ -1,7 +1,7 @@
 # Ignore large data files
-data_new/all_data_melted.csv
-data_new/data.db
-data/
+# data_new/all_data_melted.csv
+# data_new/data.db
+# data/
 .env
 .env.*
 __pycache__/

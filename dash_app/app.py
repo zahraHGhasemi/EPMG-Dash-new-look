@@ -25,17 +25,15 @@ from auth.models import db
 session = db.session
 
 def init_dash(server):
+    """Initialize the Dash app with the given Flask server, set up the layout, and register callbacks."""
     app = dash.Dash(
         __name__,
-        server=server,  # ✅ IMPORTANT: attach Dash to existing Flask server
+        server=server,  
         external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP],
         suppress_callback_exceptions=True,
         url_base_pathname="/dash/"
     )
-    # app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP],
-    #     suppress_callback_exceptions=True)
-    # server = app.server
-    # all_data_melted = get_data_melted()
+    
     app.title = "Energy Scenarios Dashboard"
     main_layout =  html.Div([
         dcc.Location(id = 'url', refresh = False),
@@ -60,8 +58,8 @@ def init_dash(server):
         ],
         style={
             "display": "flex",
-            "alignItems": "center",     # vertical alignment
-            "justifyContent": "center", # horizontal centering
+            "alignItems": "center",    
+            "justifyContent": "center", 
             "padding": "20px"
         }), 
         
@@ -70,7 +68,6 @@ def init_dash(server):
                 dcc.Tabs(id ='tabs', value = 'about', children =[
                     dcc.Tab(label = 'About', value = 'about'),
                     dcc.Tab(label='Overview', value='overview'),
-                    # dcc.Tab(label='Chart Detail', value='all-charts'),
                     dcc.Tab(label='Charts', value='charts'),
                     dcc.Tab(label= "Sankey Diagram", value = 'sankey')
                 ]),
@@ -128,8 +125,4 @@ def init_dash(server):
 
     return app
 
-    # import os
-    # if __name__ == '__main__':
-    #     port = int(os.environ.get("PORT", 8050))
-    #     app.run(host="0.0.0.0", port=port, debug=True)
-    #     # app.run(debug=True)
+ 

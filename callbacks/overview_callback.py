@@ -1,9 +1,7 @@
 from urllib.parse import parse_qs, urlparse
 from dash import Input, Output, State
 import plotly.express as px
-# from utils.dataframe_melter import get_data_melted
-from data_provider.sql_data import SQLDataProvider
-from utils.plot_chart import plot_pie_chart, plot_bar_chart, plot_two_pie_charts_px, plot_two_bar_charts_px
+from utils.plot_chart import plot_two_pie_charts_px, plot_two_bar_charts_px
 from utils.dashboard_settings import get_dashboard_settings, get_overview_metrics
 from utils.plotly_download import build_plotly_download_config
 from auth.models import normalize_series_color, pastel_continuous_palette
@@ -11,6 +9,7 @@ from utils.unit_handler import unit_detect
 
 
 def _get_overview_metric_config(metric_title):
+    """Return the selected overview metric plus all overview settings."""
     settings = get_dashboard_settings()
     overview_metrics = get_overview_metrics(settings)
     metric_map = {metric["title"]: metric for metric in overview_metrics}
@@ -18,6 +17,7 @@ def _get_overview_metric_config(metric_title):
 
 
 def register_overview_callbacks(app, provider):
+    """Register callbacks for overview metric selection, units, and chart rendering."""
     @app.callback(
         Output('scenario-dropdown', 'options'),
         Output('scenario-dropdown', 'value'),
@@ -26,6 +26,7 @@ def register_overview_callbacks(app, provider):
         State("scenario-dropdown", "value")
     )
     def update_scenario_dropdown(href, current_value):
+        """Populate overview scenario options from the active study in the URL."""
         if not href:
             return [], None
 
@@ -59,6 +60,7 @@ def register_overview_callbacks(app, provider):
         State('metric-dropdown', 'value')
     )
     def update_metric_dropdown(_, current_value):
+        """Populate overview metric options from dashboard settings."""
         settings = get_dashboard_settings()
         overview_metrics = get_overview_metrics(settings)
         options = [{"label": metric["title"], "value": metric["title"]} for metric in overview_metrics]
@@ -81,6 +83,7 @@ def register_overview_callbacks(app, provider):
         State('unit-dropdown-overview', 'value')
     )
     def update_unit(metric, current_value):
+        """Choose valid display-unit options for the selected overview metric."""
         metric_config, _, _ = _get_overview_metric_config(metric)
         if not metric_config:
             return [], None
@@ -114,6 +117,7 @@ def register_overview_callbacks(app, provider):
         Input('unit-dropdown-overview', 'value')
     )
     def update_overview_chart(scenario, year_start, year_end, metric, chart_type, unit):
+        """Render the overview chart for the selected metric, years, scenario, and unit."""
         config = build_plotly_download_config(
             "overview",
             scenario,

@@ -1,12 +1,13 @@
 import plotly.express as px
 import pandas as pd
+from plotly.subplots import make_subplots
+
+
+
 def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = "Value", facet_col= None, category_orders = None, barmode = 'stack',color_map =[], table_title ="Selected Chart"):
+    """Generic function to plot bar, line, or area charts using Plotly Express, with dynamic color mapping."""
     color_col = 'seriesTitle' if all_data_melted_filtered['seriesTitle'].notna().any() else 'seriesName'
-    # if 'tableTitle' in all_data_melted_filtered.columns:
-    #     table_title = all_data_melted_filtered['tableTitle'].unique()[0] 
-    #     title_col = table_title if  table_title != 'nan' else all_data_melted_filtered['tableName'].unique()[0]
-    # else:
-    #     title_col = "Selected Chart"
+    
     title_col = table_title
     all_data_melted_filtered = all_data_melted_filtered.sort_values(by="Year")
 
@@ -21,101 +22,82 @@ def plot_chart(all_data_melted_filtered, type = 'area', x_col = "Year", y_col = 
         fig = px.bar(
             all_data_melted_filtered,
             x=x_col,
-            y=y_col, # Changed y to 'Value'
-            color=color_col, #'seriesTitle', # Changed color to 'seriesName',
-            title  = title_col, #all_data_melted_filtered['tableTitle'].unique()[0]
+            y=y_col, 
+            color=color_col, 
+            title  = title_col, 
             color_discrete_map= color_map,
-            # color_discrete_sequence=px.colors.qualitative.Light24,
             facet_col = facet_col,
             category_orders=category_orders
         )
-        # print(all_data_melted_filtered.columns, "label----")
         fig.update_layout(xaxis_title= x_col, yaxis_title= all_data_melted_filtered['label'].unique()[0] if not all_data_melted_filtered.empty else 'Value',
-                          legend = dict(title_text='')) # Updated yaxis_title
-        
+                          legend = dict(title_text='')) 
         return fig
     elif type == 'line':
         fig = px.line(
             all_data_melted_filtered,
             x=x_col,
-            y=y_col, # Changed y to 'Value'
-            color=color_col, #'seriesTitle', # Changed color to 'seriesName',
-            title  = title_col, #tiall_data_melted_filtered['tableTitle'].unique()[0]
+            y=y_col, 
+            color=color_col, 
+            title  = title_col, 
             color_discrete_map=color_map,
             facet_col = facet_col,
             category_orders=category_orders
         )
         fig.update_layout(xaxis_title= x_col, yaxis_title= all_data_melted_filtered['label'].unique()[0] if not all_data_melted_filtered.empty else 'Value',
-                          legend = dict(title_text='')) # Updated yaxis_title
+                          legend = dict(title_text='')) 
         return fig
     elif type == 'area':
         fig = px.area(
             all_data_melted_filtered,
             x= x_col,
-            y=y_col, # Changed y to 'Value'
-            color=color_col, #'seriesTitle', # Changed color to 'seriesName',
-            title  = title_col, #tiall_data_melted_filtered['tableTitle'].unique()[0]
+            y=y_col, 
+            color=color_col, 
+            title  = title_col, 
             color_discrete_map=color_map,
             facet_col = facet_col,
             category_orders=category_orders
         )
         fig.update_layout(xaxis_title= x_col, yaxis_title= all_data_melted_filtered['label'].unique()[0] if not all_data_melted_filtered.empty else 'Value', 
-                          legend = dict(title_text='')) # Updated yaxis_title
+                          legend = dict(title_text=''))  
         return fig
     
 
-def plot_pie_chart(df, year, title, color_map=None):
-    fig = px.pie(
-        df,
-        values='Value',
-        names='seriesTitle',
-        title=f'{title} {year}',
-        hole=0.3,
-        color='seriesTitle',
-        color_discrete_map=color_map,
-    )
+# def plot_pie_chart(df, year, title, color_map=None):
+#     """Function to plot a pie chart using Plotly Express, with dynamic color mapping and center annotation for total value for the overview tab."""
+#     fig = px.pie(
+#         df,
+#         values='Value',
+#         names='seriesTitle',
+#         title=f'{title} {year}',
+#         hole=0.3,
+#         color='seriesTitle',
+#         color_discrete_map=color_map,
+#     )
 
-    # fig.update_layout(showlegend=False)
     
-    total= int(df['Value'].sum())
-    unit = df['label'].unique()[0] if not df.empty else ''
-    fig.add_annotation(
-        text=f"{total} {unit}",
-        x=0.5, y=0.5,
-        font=dict(size=15, color='black'),
-        showarrow=False
-    )    
-    return fig
-def plot_bar_chart(df, year, title):
-    font_sizes = [8 + (v / max(df["Value"])) * 10 for v in df["Value"]]
+#     total= int(df['Value'].sum())
+#     unit = df['label'].unique()[0] if not df.empty else ''
+#     fig.add_annotation(
+#         text=f"{total} {unit}",
+#         x=0.5, y=0.5,
+#         font=dict(size=15, color='black'),
+#         showarrow=False
+#     )    
+#     return fig
 
-    fig = px.bar(df, x='Year', y='Value', title=f'{title} {year}', color='seriesTitle',
-                 color_discrete_sequence=px.colors.qualitative.Light24)
-    fig.update_traces(width=0.4)  # 0.4 = relative width (0–1 scale)
-    fig.update_layout(xaxis_title='Year', yaxis_title= df['label'].unique()[0] if not df.empty else 'seriesTitle')
+# def plot_bar_chart(df, year, title):
+#     font_sizes = [8 + (v / max(df["Value"])) * 10 for v in df["Value"]]
 
-    # fig.update_layout(showlegend=False)
+#     fig = px.bar(df, x='Year', y='Value', title=f'{title} {year}', color='seriesTitle',
+#                  color_discrete_sequence=px.colors.qualitative.Light24)
+#     fig.update_traces(width=0.4)  
+#     fig.update_layout(xaxis_title='Year', yaxis_title= df['label'].unique()[0] if not df.empty else 'seriesTitle')
 
-    # fig.update_traces(
-    #     textposition="inside",
-    #     textfont= dict(color="black")  # color works well on dark bars
-    # )
-   
+#     return fig
 
-    # fig.update_layout(
-    #     legend=dict(
-    #         orientation="h",         # horizontal legend
-    #         yanchor="top",           # anchor legend to top of its box
-    #         y=-0.2,                  # move below plot area
-    #         xanchor="center",        # center it horizontally
-    #         x=0.5
-    #     )
-    # )
-    return fig
-
-from plotly.subplots import make_subplots
 
 def plot_two_pie_charts_px(df1, year1, df2, year2, title, label='Value', color_map=None):
+    """Function to plot two pie charts side by side using Plotly Express, with dynamic color mapping and center annotations for total values for the overview tab."""
     # Create the subplots layout
     fig = make_subplots(
         rows=1, cols=2,
@@ -141,21 +123,16 @@ def plot_two_pie_charts_px(df1, year1, df2, year2, title, label='Value', color_m
         color_discrete_map=color_map,
     )
 
-    # Add traces from px.pie to the combined figure
     for trace in pie1.data:
-        # trace.textinfo = 'percent'
         trace.textposition='inside'
         trace.textinfo='percent+label'
-        # trace.texttemplate = '%{percent:.1f}%'
-        # trace.hovertemplate = '%{label}: %{value} (%{percent:.1f}%)'
+        
         fig.add_trace(trace, 1, 1)
 
     for trace in pie2.data:
-        # trace.textinfo = 'percent'
         trace.textposition='inside'
         trace.textinfo='percent+label'
-        # trace.texttemplate = '%{:.1f}%'
-        # trace.hovertemplate = '%{label}: %{value} (%{percent:.1f}%)'
+       
         fig.add_trace(trace, 1, 2)
 
     # Add center annotations for totals
@@ -192,16 +169,14 @@ def plot_two_pie_charts_px(df1, year1, df2, year2, title, label='Value', color_m
     return fig
 
 def plot_two_bar_charts_px(df1, year1, df2, year2, title, label, color_map=None):
+    """Function to plot two bar charts side by side using Plotly Express, with dynamic color mapping for the overview tab."""
     df1 = df1.copy()
     df2 = df2.copy()
     df1["Year"] = year1
     df2["Year"] = year2
-    # df = px.data.tips()  # remove any old reference, just here for context
-    # combined_df = px.data.tips()  # placeholder
-    # combined_df = px.data.tips()  # delete these lines in actual use
+   
     combined_df = pd.concat([df1, df2], ignore_index=True)
-    # print(combined_df, "combined df---")
-    # Optional: compute dynamic font size scaling (if you still want it)
+    
     combined_df["font_size"] = [8 + (v / max(combined_df["Value"])) * 10 for v in combined_df["Value"]]
 
     # Create stacked bar chart with Plotly Express

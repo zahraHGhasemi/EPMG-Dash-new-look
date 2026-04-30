@@ -1,14 +1,11 @@
 import dash_bootstrap_components as dbc
 from dash import html, dcc
-
-from data_provider.sql_data import SQLDataProvider
-# from utils.dataframe_melter import get_scenarios
-# from utils.get_data import get_scenarios
-# scenarios = get_scenarios()
 from utils.dashboard_settings import get_dashboard_settings
 
 
 def overview_layout():
+    """Generate the layout for the Overview tab, which includes dropdowns for selecting scenario, metric, year range, unit, and chart type, as well as a graph to display the overview chart."""
+    
     settings = get_dashboard_settings()
     start_year = settings["start_year"]
     default_start_year = settings["default_start_year"]
@@ -120,7 +117,7 @@ def overview_layout():
             
             
         ],
-            md=12,  # full width on medium+ screens
+            md=12, 
         )
         
     ])

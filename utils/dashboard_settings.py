@@ -30,6 +30,7 @@ DEFAULT_SETTINGS = {
 
 
 def _normalize_overview_metric(metric):
+    """Normalize an overview metric configuration, ensuring required fields are present and properly formatted."""
     if isinstance(metric, dict):
         title = str(metric.get("title") or "").strip()
         category = str(metric.get("category") or "").strip()
@@ -41,17 +42,7 @@ def _normalize_overview_metric(metric):
             if str(series_title).strip()
         ]
         divide_by = metric.get("divide_by")
-    # elif isinstance(metric, (list, tuple)) and len(metric) >= 4:
-    #     title = str(metric[0] or "").strip()
-    #     category = ""
-    #     table_title = str(metric[2] or "").strip()
-    #     table_id = None
-    #     series_titles = [
-    #         str(series_title).strip()
-    #         for series_title in (metric[1] or [])
-    #         if str(series_title).strip()
-    #     ]
-    #     divide_by = metric[3]
+    
     else:
         return None
 
@@ -74,6 +65,7 @@ def _normalize_overview_metric(metric):
 
 
 def get_overview_metrics(settings=None):
+    """Fetch the normalized list of overview metrics from the dashboard settings."""
     if settings is None:
         if SETTINGS_PATH.exists():
             with SETTINGS_PATH.open("r", encoding="utf-8") as f:
@@ -93,6 +85,7 @@ def get_overview_metrics(settings=None):
 
 
 def save_overview_metrics(metrics):
+    """Save the provided list of overview metrics to the dashboard settings, ensuring they are properly normalized."""
     current_settings = get_dashboard_settings()
     updated_settings = dict(current_settings)
     updated_settings["overview_metrics"] = metrics
@@ -100,6 +93,7 @@ def save_overview_metrics(metrics):
 
 
 def _sanitize(settings):
+    """Sanitize and validate the provided dashboard settings, ensuring all required fields are present and properly formatted."""
     data = dict(DEFAULT_SETTINGS)
     data.update(settings or {})
 
@@ -163,6 +157,7 @@ def _sanitize(settings):
 
 
 def get_dashboard_settings():
+    """Fetch the current dashboard settings, applying defaults and sanitization as needed."""
     if not SETTINGS_PATH.exists():
         return dict(DEFAULT_SETTINGS)
 
@@ -172,6 +167,7 @@ def get_dashboard_settings():
 
 
 def save_dashboard_settings(settings):
+    """Save the provided dashboard settings, merging them with existing settings and ensuring they are properly sanitized."""
     current_settings = get_dashboard_settings()
     merged_settings = dict(current_settings)
     merged_settings.update(settings or {})

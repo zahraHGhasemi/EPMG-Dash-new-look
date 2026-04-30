@@ -1,8 +1,4 @@
-# from tokenize import String
-# from unittest.mock import Base
 from flask_login import UserMixin
-# from database import Base
-# from utils.database_utils import Base
 import colorsys
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import event, select
@@ -14,15 +10,17 @@ db = SQLAlchemy()
 
 
 class User(UserMixin, db.Model):
+    """Application user account used by Flask-Login authentication."""
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(20), default="user")
+    role = db.Column(db.String(20), default="admin")
 
 
 class Study(db.Model):
+    """A study grouping that can be linked to one or more scenarios."""
     __tablename__ = "studies"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
@@ -40,6 +38,7 @@ class Study(db.Model):
         cascade="all, delete-orphan"
     )
 class Scenario(db.Model):
+    """Named scenario whose values can be attached to studies and downloaded."""
     __tablename__ = "scenarios"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -50,6 +49,7 @@ class Scenario(db.Model):
     )
 
 class StudyScenario(db.Model):
+    """Join table that links studies and scenarios without duplicate pairs."""
     __tablename__ = 'study_scenarios'
     id = db.Column(db.Integer, primary_key=True)
     study_id = db.Column(db.Integer, db.ForeignKey('studies.id', ondelete='CASCADE'))
@@ -59,6 +59,7 @@ class StudyScenario(db.Model):
     )
 
 class Table(db.Model):
+    """Dashboard data table definition, including display title, unit label, and category."""
     __tablename__ = 'tables'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, unique=True, nullable=False)
@@ -67,6 +68,7 @@ class Table(db.Model):
     category = db.Column(db.String)
 
 class Series(db.Model):
+    """A named data series that belongs to one table and can have a unique display color."""
     __tablename__ = 'series'
     id = db.Column(db.Integer, primary_key=True)
     table_id = db.Column(db.Integer, db.ForeignKey('tables.id', ondelete='CASCADE'))
@@ -77,9 +79,48 @@ class Series(db.Model):
         db.UniqueConstraint('table_id', 'name', name='uq_table_series'),
         db.UniqueConstraint('table_id', 'color', name='uq_series_table_color'),
     )
+class Year(db.Model):
+    """Allowed year dimension for uploaded scenario values."""
+    __tablename__ = 'years'
+    year = db.Column(db.Integer, primary_key=True)
+
+class Value(db.Model):
+    """Numeric scenario value for one series(in specific table) and year."""
+    __tablename__ = 'values'
+    id = db.Column(db.Integer, primary_key=True)
+    scenario_id = db.Column(db.Integer, db.ForeignKey('scenarios.id', ondelete='CASCADE'))
+    series_id = db.Column(db.Integer, db.ForeignKey('series.id', ondelete='CASCADE'))
+    year = db.Column(db.Integer, db.ForeignKey('years.year'))
+    value = db.Column(db.Float)
+
+    __table_args__ = (
+        db.UniqueConstraint('scenario_id', 'series_id', 'year', name='uq_value'),
+    )
+
+class StudyAbout(db.Model):
+    """Markdown-style descriptive text attached one-to-one to a study."""
+    __tablename__ = "study_about"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    study_id = db.Column(
+        db.Integer,
+        db.ForeignKey("studies.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False
+    )
+
+    description = db.Column(db.Text, nullable=False)
+
+
+    study = db.relationship(
+        "Study",
+        back_populates="about"
+    )
 
 
 def pastel_continuous_palette(n: int, s: float = 0.35, v: float = 0.95) -> list[str]:
+    """Generate n evenly spaced pastel hex colors from the HSV color wheel."""
     if n <= 0:
         return []
     colors = []
@@ -91,6 +132,7 @@ def pastel_continuous_palette(n: int, s: float = 0.35, v: float = 0.95) -> list[
 
 
 def normalize_series_color(color: str | None) -> str | None:
+    """Normalize blank color values to None and hex-like values to lowercase."""
     if color is None:
         return None
     normalized = color.strip().lower()
@@ -98,6 +140,7 @@ def normalize_series_color(color: str | None) -> str | None:
 
 
 def next_available_series_color(used_colors: set[str]) -> str:
+    """Return the next generated pastel color that is not already used."""
     normalized_used = {normalize_series_color(c) for c in used_colors if normalize_series_color(c)}
     total = len(normalized_used) + 1
     while True:
@@ -108,6 +151,7 @@ def next_available_series_color(used_colors: set[str]) -> str:
 
 
 def used_series_colors_for_table(session, table_id: int) -> set[str]:
+    """Fetch the non-empty colors already assigned to a table's series."""
     rows = session.execute(
         select(Series.color).where(
             Series.table_id == table_id,
@@ -119,6 +163,7 @@ def used_series_colors_for_table(session, table_id: int) -> set[str]:
 
 @event.listens_for(SASession, "before_flush")
 def assign_or_validate_series_colors_before_flush(session, flush_context, instances):
+    """Assign missing colors and reject duplicate colors before new series rows flush."""
     pending_series = [obj for obj in session.new if isinstance(obj, Series)]
     if not pending_series:
         return
@@ -165,40 +210,5 @@ def assign_or_validate_series_colors_before_flush(session, flush_context, instan
 
 @event.listens_for(Series, "before_update")
 def normalize_series_color_before_update(mapper, connection, target):
+    """Normalize a series color before an existing series row is updated."""
     target.color = normalize_series_color(target.color)
-
-class Year(db.Model):
-    __tablename__ = 'years'
-    year = db.Column(db.Integer, primary_key=True)
-
-class Value(db.Model):
-    __tablename__ = 'values'
-    id = db.Column(db.Integer, primary_key=True)
-    scenario_id = db.Column(db.Integer, db.ForeignKey('scenarios.id', ondelete='CASCADE'))
-    series_id = db.Column(db.Integer, db.ForeignKey('series.id', ondelete='CASCADE'))
-    year = db.Column(db.Integer, db.ForeignKey('years.year'))
-    value = db.Column(db.Float)
-
-    __table_args__ = (
-        db.UniqueConstraint('scenario_id', 'series_id', 'year', name='uq_value'),
-    )
-
-class StudyAbout(db.Model):
-    __tablename__ = "study_about"
-
-    id = db.Column(db.Integer, primary_key=True)
-
-    study_id = db.Column(
-        db.Integer,
-        db.ForeignKey("studies.id", ondelete="CASCADE"),
-        unique=True,
-        nullable=False
-    )
-
-    description = db.Column(db.Text, nullable=False)
-
-
-    study = db.relationship(
-        "Study",
-        back_populates="about"
-    )
