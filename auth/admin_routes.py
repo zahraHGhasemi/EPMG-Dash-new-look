@@ -379,19 +379,44 @@ def remove_studies_page():
 @login_required
 @admin_required
 def admin_studies():
-    """List studies and add a new study with its status."""
+    """List studies, add new studies, and edit existing study names."""
     if request.method == "POST":
-        name = request.form.get("name")
+        action = request.form.get("action", "add")
+        name = (request.form.get("name") or "").strip()
+
+        if action == "update":
+            study_id = request.form.get("study_id", type=int)
+            study = db.session.get(Study, study_id) if study_id else None
+
+            if not study:
+                flash("Study not found.")
+                return redirect(url_for("admin.admin_studies"))
+
+            if not name:
+                flash("Please enter a study name.")
+                return redirect(url_for("admin.admin_studies"))
+
+            study.name = name
+            db.session.commit()
+            flash("Study name updated successfully!")
+            return redirect(url_for("admin.admin_studies"))
+
         status = request.form.get("status")
-        
+        about_md = (request.form.get("about_md") or "").strip()
+
         if not name or not status:
             flash("Please enter both name and status")
             return redirect(url_for("admin.admin_studies"))
-        
+
         new_study = Study(name=name, status=status)
         db.session.add(new_study)
+        db.session.flush()
+
+        if about_md:
+            db.session.add(StudyAbout(study_id=new_study.id, description=about_md))
+
         db.session.commit()
-        
+
         flash("Study added successfully!")
         return redirect(url_for("admin.admin_studies"))
     

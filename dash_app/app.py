@@ -1,6 +1,7 @@
 import dash
 from dash import dcc, html
 from dash import clientside_callback, Input, Output, State
+from urllib.parse import parse_qs
 
 from flask import render_template, request
 import plotly.express as px
@@ -20,7 +21,7 @@ from components.sankey import sankey_layout
 
 from data_provider.sql_data import SQLDataProvider
 
-from auth.models import db
+from auth.models import db, Study
 
 session = db.session
 
@@ -48,13 +49,27 @@ def init_dash(server):
                     "margin-right": "15px"
                 }
             ),
-            html.H1(
-                "Energy Policy & Modeling Group Dashboard",
-                style={
-                    "margin": "0",
-                    "font-size": "36px"
-                }
-            )
+            html.Div([
+                html.H1(
+                    "Energy Policy & Modeling Group Dashboard",
+                    style={
+                        "margin": "0",
+                        "font-size": "36px",
+                        "font-weight": "500"
+                    }
+                ),
+                html.H2(
+                    id="active-study-title",
+                    style={
+                        "margin": "4px 0 0",
+                        "font-size": "24px",
+                        "font-weight": "700"
+                    }
+                )
+            ],
+            style={
+                "textAlign": "center"
+            })
         ],
         style={
             "display": "flex",
@@ -89,6 +104,24 @@ def init_dash(server):
             main_layout
         ])
     provider = SQLDataProvider(session=session)
+
+    @app.callback(
+        Output("active-study-title", "children"),
+        Input("url", "search"),
+    )
+    def update_active_study_title(search):
+        query = parse_qs((search or "").lstrip("?"))
+        study_id = query.get("study_id", [None])[0]
+        if not study_id:
+            return ""
+
+        try:
+            study = db.session.get(Study, int(study_id))
+        except (TypeError, ValueError):
+            return ""
+
+        return study.name if study else ""
+
     app.clientside_callback(
     """
     function(search, tab) {
