@@ -1,10 +1,29 @@
 from urllib.parse import parse_qs, urlparse, urlencode
 from dash import Input, Output, State
+from auth.models import db, Study
 from utils.dashboard_settings import get_dashboard_settings
 
 
 def register_tab_content_callbacks(app):
     """Register callbacks for tab content visibility and URL synchronization."""
+    @app.callback(
+        Output("active-study-title", "children"),
+        Input("url", "search"),
+    )
+    def update_active_study_title(search):
+        """Update the dashboard header with the active study name from the URL."""
+        query = parse_qs((search or "").lstrip("?"))
+        study_id = query.get("study_id", [None])[0]
+        if not study_id:
+            return ""
+
+        try:
+            study = db.session.get(Study, int(study_id))
+        except (TypeError, ValueError):
+            return ""
+
+        return study.name if study else ""
+
     @app.callback(
         Output("tabs", "value"),
         Input("url", "href"),
