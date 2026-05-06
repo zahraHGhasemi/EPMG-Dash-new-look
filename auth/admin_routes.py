@@ -40,6 +40,7 @@ from utils.dashboard_settings import (
     save_dashboard_settings,
     save_overview_metrics,
 )
+from utils.category_dict import get_category_pairs, save_category_dict
 from config.constants import CATEGORY_DICT
 
 admin_bp = Blueprint(
@@ -215,8 +216,33 @@ def default_values():
         for category in categories
     }
 
+    def _render_default_values_page(settings_override=None):
+        return render_template(
+            "admin/default_values.html",
+            settings=settings_override or get_dashboard_settings(),
+            studies=studies,
+            categories=categories,
+            category_dict=CATEGORY_DICT,
+            category_pairs=get_category_pairs(),
+            study_scenarios_map=study_scenarios_map,
+            sector_subsectors_map=sector_subsectors_map,
+        )
+
     if request.method == "POST":
+        action = (request.form.get("action") or "save_defaults").strip()
         try:
+            if action == "save_category_dict":
+                category_names = request.form.getlist("category_name[]")
+                category_codes = request.form.getlist("category_code[]")
+                save_category_dict(
+                    [
+                        {"name": name, "code": code}
+                        for name, code in zip(category_names, category_codes)
+                    ]
+                )
+                flash("Category dropdown labels saved.", "success")
+                return redirect(url_for("admin.default_values"))
+
             payload = {
                 "start_year": request.form.get("start_year"),
                 "end_year": request.form.get("end_year"),
@@ -256,28 +282,11 @@ def default_values():
 
             updated = save_dashboard_settings(payload)
             flash("Dashboard defaults saved.", "success")
-            return render_template(
-                "admin/default_values.html",
-                settings=updated,
-                studies=studies,
-                categories=categories,
-                category_dict=CATEGORY_DICT,
-                study_scenarios_map=study_scenarios_map,
-                sector_subsectors_map=sector_subsectors_map,
-            )
+            return _render_default_values_page(updated)
         except Exception as e:
             flash(f"Could not save defaults: {e}", "danger")
 
-    settings = get_dashboard_settings()
-    return render_template(
-        "admin/default_values.html",
-        settings=settings,
-        studies=studies,
-        categories=categories,
-        category_dict=CATEGORY_DICT,
-        study_scenarios_map=study_scenarios_map,
-        sector_subsectors_map=sector_subsectors_map,
-    )
+    return _render_default_values_page()
 
 
 
