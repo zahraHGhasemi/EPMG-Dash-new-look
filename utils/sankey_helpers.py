@@ -429,7 +429,7 @@ def compute_node_totals(df, nodes):
             totals[node] = -1
 
     return totals
-def draw_sankey(df_all, year, nodes, node_indices, node_colors):
+def draw_sankey(df_all, year, nodes, node_indices, node_colors, scenario=None, title_label=None):
     """Render a Plotly Sankey figure for one year of prepared flow data."""
     source = df_all['seriesTitle'].map(node_indices)
     target = df_all['target'].map(node_indices)
@@ -455,8 +455,9 @@ def draw_sankey(df_all, year, nodes, node_indices, node_colors):
             color=link_colors
         )
     ))
+    title_parts = [part for part in [scenario, title_label, str(year) if year is not None else None] if part]
     fig.update_layout(
-        title = year
+        title=" | ".join(title_parts) if title_parts else str(year)
     )
     return fig
 

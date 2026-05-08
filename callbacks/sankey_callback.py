@@ -155,8 +155,24 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
         node, node_indices, node_colors = link_colors(df_all, df_all_end, series_color_map)
         
         return (
-            draw_sankey(df_all, year[0], node, node_indices, node_colors),
-            draw_sankey(df_all_end, year[1], node, node_indices, node_colors),
+            draw_sankey(
+                df_all,
+                year[0],
+                node,
+                node_indices,
+                node_colors,
+                scenario=scenario,
+                title_label=title_label,
+            ),
+            draw_sankey(
+                df_all_end,
+                year[1],
+                node,
+                node_indices,
+                node_colors,
+                scenario=scenario,
+                title_label=title_label,
+            ),
             start_config,
             end_config,
         )

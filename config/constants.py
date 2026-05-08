@@ -15,5 +15,6 @@ CATEGORY_DICT = {
     'AGR': 'Agriculture',
     'SYS': 'System',
     'Sto': 'Storage',
+    'TAB': 'TABLE TEST tilte',
 }
 
