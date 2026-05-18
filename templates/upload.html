@@ -24,8 +24,15 @@
     {% endwith %}
     <form method="POST" enctype="multipart/form-data">
         <div class="mb-4">
+            <div class="mb-3">
+                <label class="form-label"><strong>Select a Study</strong></label>
+                <select class="form-select" id="study" name="study" required>
+                    {% for study in studies %}
+                        <option value="{{ study.id }}">{{ study.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
             <label class="form-label d-block"><strong>Choose Upload Format</strong></label>
-
             <div class="form-check border rounded p-3 mb-3">
                 <input
                     class="form-check-input"
@@ -66,17 +73,55 @@
             <h5 class="mb-3">Format 1 Requirements</h5>
             <p class="mb-2">The uploaded file must be a <code>.csv</code> file and must include:</p>
             <ul class="mb-2">
-                <li>Exactly one <code>.csv</code> file</li>
                 <li><code>tableName</code></li>
                 <li><code>seriesName</code></li>
                 <li><code>label</code></li>
                 <li>One or more yearly data columns such as <code>2018</code> to <code>2050</code></li>
             </ul>
             <p class="mb-0">
-                Only these columns are allowed in this format. Rows cannot contain empty values. If a required column is missing, a year column is missing, a cell is empty, or a yearly value is not numeric, the user will receive a specific error message.
+                Only these columns are allowed in this format. Only one file can be uploaded. Rows cannot contain empty values. If a required column is missing, a year column is missing, a cell is empty, or a yearly value is not numeric, the user will receive a specific error message.
             </p>
         </div>
-
+        <div class="mb-3 d-none" id="overwrite-existing-scenarios">
+            <div class="form-check">
+                <input
+                    class="form-check-input"
+                    type="checkbox"
+                    value="1"
+                    id="overwrite-existing-scenario-input"
+                    name="overwrite_existing_scenarios"
+                >
+                <label class="form-check-label" for="overwrite-existing-scenario-input">
+                    Overwrite existing scenario in selected study if it already exists
+                </label>
+            </div>
+            <div class="ms-4 mt-2 d-none" id="scenario-overwrite-scope-group">
+                <div class="form-check">
+                    <input
+                        class="form-check-input scenario-overwrite-scope-input"
+                        type="radio"
+                        name="scenario_overwrite_scope"
+                        id="overwrite-entire-scenario-input"
+                        value="entire_scenario"
+                    >
+                    <label class="form-check-label" for="overwrite-entire-scenario-input">
+                        Replace the entire scenario
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input
+                        class="form-check-input scenario-overwrite-scope-input"
+                        type="radio"
+                        name="scenario_overwrite_scope"
+                        id="overwrite-uploaded-tables-input"
+                        value="uploaded_tables"
+                    >
+                    <label class="form-check-label" for="overwrite-uploaded-tables-input">
+                        Replace only tables included in the uploaded file
+                    </label>
+                </div>
+            </div>
+        </div>
         <div id="format-help-placeholder" class="border rounded p-3 mb-4 d-none">
             <h5 class="mb-3">Format 2 Requirements</h5>
             <p class="mb-2">Choose one or more dashboard tables, then upload the unique source <code>.csv</code> files they require.</p>
@@ -171,6 +216,10 @@
     const formatOneHelp = document.getElementById("format-help-table-series-year");
     const formatTwoHelp = document.getElementById("format-help-placeholder");
     const scenarioNameGroup = document.getElementById("scenario-name-group");
+    const overwriteExistingScenariosGroup = document.getElementById("overwrite-existing-scenarios");
+    const overwriteExistingScenarioInput = document.getElementById("overwrite-existing-scenario-input");
+    const scenarioOverwriteScopeGroup = document.getElementById("scenario-overwrite-scope-group");
+    const scenarioOverwriteScopeInputs = Array.from(document.querySelectorAll(".scenario-overwrite-scope-input"));
     const tableUploadNameGroup = document.getElementById("table-upload-name-group");
     const tableUploadCheckboxes = Array.from(document.querySelectorAll(".table-upload-checkbox"));
     const requiredSourceFilesGroup = document.getElementById("required-source-files-group");
@@ -231,6 +280,9 @@
       if (scenarioNameGroup) {
         scenarioNameGroup.classList.toggle("d-none", !showFormatOne);
       }
+      if (overwriteExistingScenariosGroup) {
+        overwriteExistingScenariosGroup.classList.toggle("d-none", !showFormatOne);
+      }
       if (tableUploadNameGroup) {
         tableUploadNameGroup.classList.toggle("d-none", showFormatOne);
       }
@@ -253,7 +305,21 @@
           ? "Choose one CSV file only."
           : "Choose the unique source CSV files listed above.";
       }
+      updateScenarioOverwriteScope();
       updateRequiredSourceFiles();
+    }
+
+    function updateScenarioOverwriteScope() {
+      const enabled = !!overwriteExistingScenarioInput && overwriteExistingScenarioInput.checked;
+      if (scenarioOverwriteScopeGroup) {
+        scenarioOverwriteScopeGroup.classList.toggle("d-none", !enabled);
+      }
+      scenarioOverwriteScopeInputs.forEach(function (input) {
+        input.required = enabled;
+        if (!enabled) {
+          input.checked = false;
+        }
+      });
     }
 
     fileInput.addEventListener("change", function () {
@@ -286,6 +352,9 @@
     tableUploadCheckboxes.forEach(function (checkbox) {
       checkbox.addEventListener("change", updateRequiredSourceFiles);
     });
+    if (overwriteExistingScenarioInput) {
+      overwriteExistingScenarioInput.addEventListener("change", updateScenarioOverwriteScope);
+    }
     toggleFormatHelp();
   })();
 </script>

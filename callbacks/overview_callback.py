@@ -42,15 +42,13 @@ def register_overview_callbacks(app, provider):
             return [], None
 
         scenarios = provider.get_scenarios_for_study(study_id)
-        options = [{"label": s.name, "value": s.name} for s in scenarios]
-        configured = get_dashboard_settings().get("default_scenario")
-        option_values = {opt["value"] for opt in options}
-        if current_value in option_values:
+        options = [{"label": scenario.name, "value": str(scenario.id)} for scenario in scenarios]
+        print(current_value, "current_value")
+        if current_value in [options[i]['value'] for i in range(len(options))]:
             value = current_value
-        elif configured in option_values:
-            value = configured
         else:
             value = options[0]["value"] if options else None
+
         return options, value
     
     @app.callback(
@@ -118,9 +116,10 @@ def register_overview_callbacks(app, provider):
     )
     def update_overview_chart(scenario, year_start, year_end, metric, chart_type, unit):
         """Render the overview chart for the selected metric, years, scenario, and unit."""
+        scenario_name = provider.get_scenario_name(scenario)
         config = build_plotly_download_config(
             "overview",
-            scenario,
+            scenario_name,
             metric,
             year_start,
             year_end,

@@ -40,7 +40,7 @@ def register_tab_content_callbacks(app):
             return tab_from_url
 
         # If chart filters are present in a shared URL, open the Charts tab directly.
-        if any(key in qs for key in ("scenario", "sector", "subsector")):
+        if any(key in qs for key in ("scenario_id", "sector", "subsector")):
             return "charts"
 
         return default_tab
@@ -64,7 +64,7 @@ def register_tab_content_callbacks(app):
             qs["study_id"] = ["1"]
         qs["tab"] = [tab_value]
         if tab_value != "charts":
-            qs.pop("scenario", None)
+            qs.pop("scenario_id", None)
             qs.pop("sector", None)
             qs.pop("subsector", None)
 

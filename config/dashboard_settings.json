@@ -10,7 +10,7 @@
   "default_study_id": 5,
   "default_scenario": null,
   "default_sector": "SYS",
-  "default_subsector": "Final Energy Consumption by Sector",
+  "default_subsector": null,
   "overview_metrics": [
     {
       "title": "FEC by renewable",

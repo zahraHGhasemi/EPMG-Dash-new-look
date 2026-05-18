@@ -21,15 +21,11 @@
                     <h3 class="card-title mb-4">Add New Study</h3>
 
                     <!-- Flash messages -->
-                    {% with messages = get_flashed_messages() %}
+                    {% with messages = get_flashed_messages(with_categories=true) %}
                         {% if messages %}
-                            <div class="alert alert-success">
-                                <ul class="mb-0">
-                                    {% for message in messages %}
-                                        <li>{{ message }}</li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
+                            {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                            {% endfor %}
                         {% endif %}
                     {% endwith %}
 
@@ -37,7 +33,7 @@
                     <form method="POST">
                         <input type="hidden" name="action" value="add">
                         <div class="mb-3">
-                            <label for="name" class="form-label">Study Name</label>
+                            <label for="name" class="form-label">Study Name *</label>
                             <input
                                 type="text"
                                 id="name"
@@ -48,7 +44,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="status" class="form-label">Status</label>
+                            <label for="status" class="form-label">Status *</label>
                             <select
                                 id="status"
                                 name="status"

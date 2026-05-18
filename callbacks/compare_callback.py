@@ -36,13 +36,14 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
             scenarios = provider.get_scenarios_for_study(int(study_id))
         except (TypeError, ValueError):
             return [], None
-
-        options = [{"label": s.name, "value": s.name} for s in scenarios]
-        option_values = {opt["value"] for opt in options}
-        if current_value in option_values:
+        options = [{"label": scenario.name, "value": str(scenario.id)} for scenario in scenarios]
+        print(current_value, "current_value")
+        if current_value in [options[i]['value'] for i in range(len(options))]:
             value = current_value
+        elif len(options) > 1:
+            value = options[1]["value"]
         else:
-            value = options[1]["value"] if len(options) > 1 else None
+            value = options[0]["value"] if options else None
         return options, value
     
     @app.callback(
@@ -103,15 +104,17 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
     def update_graph(table_name,category, scenario, year_range, chart_types, compare_scenario, difference_option, unit,compare_value, color_values):
         """Render the chart, optional comparison view, or scenario difference view."""
         year_start, year_end = (year_range or [None, None])[:2]
+        scenario_name = provider.get_scenario_name(scenario)
+        compare_scenario_name = provider.get_scenario_name(compare_scenario)
         suffix = None
-        if compare_value and compare_scenario:
-            suffix = f"vs_{compare_scenario}"
+        if compare_value and compare_scenario_name:
+            suffix = f"vs_{compare_scenario_name}"
             if difference_option == 'yes':
                 suffix = f"{suffix}_difference"
 
         config = build_plotly_download_config(
             "charts",
-            scenario,
+            scenario_name,
             table_name,
             year_start,
             year_end,
@@ -132,8 +135,8 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
             df_compare = provider.get_filtered_df(table_id, compare_scenario, year_range)
             
 
-            df['source'] = 'scenario'
-            df_compare['source'] = 'scenario compare'
+            df['source'] = 'scenario ' + scenario_name
+            df_compare['source'] = 'scenario ' + compare_scenario_name
             df_compare['label'] = unit
             if unit in dict_unit.keys():
                 df_compare = unit_detect(unit, df_compare)
@@ -145,7 +148,7 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
             if difference_option == 'no':
                 df_combined = df_combined.sort_values(by="Year")
                 
-                fig = plot_chart(df_combined, chart_types, facet_col = 'source',category_orders={'source': ['scenario', 'scenario compare']}, color_map=color_map, table_title=table_name)
+                fig = plot_chart(df_combined, chart_types, facet_col = 'source',category_orders={'source': ['scenario ' + scenario_name, 'scenario ' + compare_scenario_name]}, color_map=color_map, table_title=table_name)
 
             else:
                 
@@ -226,9 +229,10 @@ def register_compare_chart_callbacks(app, provider = SQLDataProvider(session=ses
         
         table_id = provider.get_table_id(table_name, category)
         df = provider.get_filtered_df(table_id, scenario, year_range)
+        scenario_name = provider.get_scenario_name(scenario)
         df = unit_detect(unit, df) if unit in dict_unit.keys() else df
         df['label'] = unit
         df['study'] = study_name
         df['tableName'] = table_name
-        return dcc.send_data_frame(df.to_csv, f"{table_name}_{scenario}_{year_range[0]}-{year_range[1]}_{study_name}.csv", index=False)
+        return dcc.send_data_frame(df.to_csv, f"{table_name}_{scenario_name}_{year_range[0]}-{year_range[1]}_{study_name}.csv", index=False)
             

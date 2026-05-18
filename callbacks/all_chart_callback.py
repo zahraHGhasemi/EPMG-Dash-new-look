@@ -61,17 +61,10 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
             scenarios = provider.get_scenarios_for_study(int(study_id))
         except (TypeError, ValueError):
             return [], None
-        options = [{"label": s.name, "value": s.name} for s in scenarios]
-
-        selected_from_url = query.get("scenario", [None])[0]
-        configured = get_dashboard_settings().get("default_scenario")
-        option_values = {opt["value"] for opt in options}
-        if current_value in option_values:
+        options = [{"label": scenario.name, "value": str(scenario.id)} for scenario in scenarios]
+        print(current_value, "current_value")
+        if current_value in [options[i]['value'] for i in range(len(options))]:
             value = current_value
-        elif selected_from_url in option_values:
-            value = selected_from_url
-        elif configured in option_values:
-            value = configured
         else:
             value = options[0]["value"] if options else None
 
@@ -192,8 +185,9 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
             query["tab"] = ["charts"]
             changed = True
 
-        if scenario and query.get("scenario", [None])[0] != scenario:
-            query["scenario"] = [scenario]
+        if scenario and query.get("scenario_id", [None])[0] != str(scenario):
+            query["scenario_id"] = [str(scenario)]
+            query.pop("scenario", None)
             changed = True
         if sector and query.get("sector", [None])[0] != sector:
             query["sector"] = [sector]

@@ -2,9 +2,11 @@ import json
 import re
 from pathlib import Path
 
+from flask import flash
 import pandas as pd
 from sqlalchemy import delete, select
 from auth.models import (
+    Study,
     Table,
     Scenario,
     Series,
@@ -22,23 +24,24 @@ TABLE_INFO_PATH = Path(__file__).resolve().parents[1] / "config" / "table_info.j
 
 def get_or_create_scenario(
     scenario_name: str,
-    session
+    session,
+    study_id = None
 ) -> int:
-    """Get the ID of an existing scenario by name, or create it if it doesn't exist."""
+    """Get the ID of an existing scenario by name and study_id, or create it if it doesn't exist."""
     scenario_id = session.execute(
         select(Scenario.id)
-        .where(Scenario.name == scenario_name)
+        .where(Scenario.name == scenario_name, Scenario.study_id == study_id)
     ).scalar_one_or_none()
 
     if scenario_id is not None:
         return scenario_id
 
-    session.add(Scenario(name=scenario_name))
+    session.add(Scenario(name=scenario_name, study_id=study_id))
     session.commit()
 
     return session.execute(
         select(Scenario.id)
-        .where(Scenario.name == scenario_name)
+        .where(Scenario.name == scenario_name, Scenario.study_id == study_id)
     ).scalar_one()
 
 
@@ -179,6 +182,27 @@ def upsert_years(df, session):
     return {y: y for y in years}
 
 
+def upsert_year_values(years, session):
+    """Ensure all given year values exist in the Year table."""
+    cleaned_years = sorted({int(year) for year in years})
+    if not cleaned_years:
+        return {}
+
+    existing = session.execute(
+        select(Year.year)
+        .where(Year.year.in_(cleaned_years))
+    ).scalars().all()
+
+    existing_set = set(existing)
+    missing = [{"year": year} for year in cleaned_years if year not in existing_set]
+
+    if missing:
+        session.bulk_insert_mappings(Year, missing)
+        session.commit()
+
+    return {year: year for year in cleaned_years}
+
+
 def melt_and_map_values(
     df,
     scenario_id,
@@ -187,7 +211,7 @@ def melt_and_map_values(
 ):
     """Convert the wide-format DataFrame into long format suitable for bulk insertion into the Values table, mapping tableName and seriesName to their respective IDs."""
     year_cols = [c for c in df.columns if str(c).isdigit()]
-
+    
     melted = df.melt(
         id_vars=["tableName", "seriesName"],
         value_vars=year_cols,
@@ -204,7 +228,6 @@ def melt_and_map_values(
 
     melted["year"] = melted["year"].astype(int)
     melted["scenario_id"] = scenario_id
-
     return melted[[
         "scenario_id", "series_id", "year", "value"
     ]]
@@ -220,46 +243,46 @@ def bulk_insert_values(values_df, engine):
         chunksize=10_000
     )
 
-def ensure_scenario_not_exists(scenario_name, session):
+
+def map_processed_table_upload_values(data, scenario_id_map, table_map, series_map):
+    """Map preprocessed Format 2 long data directly to rows for the values table."""
+    values_df = data.copy()
+    values_df["scenario_id"] = values_df["scenario"].map(scenario_id_map)
+    values_df["table_id"] = values_df["tableName"].map(table_map)
+    values_df["series_id"] = values_df.apply(
+        lambda row: series_map[(row["seriesName"], row["table_id"])],
+        axis=1,
+    )
+    values_df["year"] = values_df["year"].astype(int)
+    values_df["value"] = values_df["total"]
+    return values_df[["scenario_id", "series_id", "year", "value"]]
+
+
+def ensure_scenario_not_exists(scenario_name, study_id, session):
     """Check if a scenario with the given name already exists, and raise an error if it does."""
     exists = session.execute(
         select(Scenario.id)
         .where(Scenario.name == scenario_name)
+        .where(Scenario.study_id == study_id)
     ).scalar_one_or_none()
-
+    study_name = session.execute(
+        select(Study.name).where(Study.id == study_id)
+    ).scalar_one_or_none()
     if exists is not None:
         raise ValueError(
-            f"Scenario '{scenario_name}' already exists. "
-            "Delete it before uploading a new one."
+            f"Scenario '{scenario_name}' already exists in study {study_name}. "
+            "Tick the 'Overwrite existing scenarios' checkbox to replace it."
         )
 
 
-def ensure_scenarios_not_exists(scenario_names, session):
-    """Check if any of the given scenario names already exist, and raise an error if they do."""
-    cleaned_names = sorted({str(name).strip() for name in scenario_names if str(name).strip()})
-    if not cleaned_names:
-        raise ValueError("No scenario names were found in the uploaded file.")
-
-    existing = session.execute(
-        select(Scenario.name).where(Scenario.name.in_(cleaned_names))
-    ).scalars().all()
-
-    if existing:
-        joined = ", ".join(sorted(existing))
-        raise ValueError(
-            f"Scenario(s) already exist and cannot be uploaded again: {joined}. "
-            "Delete them before uploading a new file."
-        )
-
-
-def get_existing_table_conflicts(session, scenario_names, table_names) -> dict[str, list[str]]:
+def get_existing_table_conflicts(session, scenario_names, table_names, study_id=None) -> dict[str, list[str]]:
     """Check if any of the given scenario names already exist with any of the given table names, and return a mapping of scenario name to list of conflicting table names."""
     cleaned_scenarios = sorted({str(name).strip() for name in scenario_names if str(name).strip()})
     cleaned_tables = sorted({str(name).strip() for name in table_names if str(name).strip()})
     if not cleaned_scenarios or not cleaned_tables:
         return {}
 
-    rows = session.execute(
+    query = (
         select(Scenario.name, Table.name)
         .join(Value, Value.scenario_id == Scenario.id)
         .join(Series, Series.id == Value.series_id)
@@ -269,7 +292,11 @@ def get_existing_table_conflicts(session, scenario_names, table_names) -> dict[s
             Table.name.in_(cleaned_tables),
         )
         .distinct()
-    ).all()
+    )
+    if study_id is not None:
+        query = query.where(Scenario.study_id == study_id)
+
+    rows = session.execute(query).all()
 
     conflicts: dict[str, list[str]] = {}
     for scenario_name, table_name in rows:
@@ -290,18 +317,31 @@ def format_table_conflicts(conflicts: dict[str, list[str]]) -> str:
     return "; ".join(parts)
 
 
-def delete_existing_values_for_scenario_tables(session, scenario_name: str, table_names) -> None:
+def delete_existing_values_for_scenario_tables(session, scenario_name: str, study_id: int, table_names: list[str], all_tables: bool = False) -> None:
     """Delete existing values for the given scenario name and table names to prevent conflicts with new uploads."""
     cleaned_tables = sorted({str(name).strip() for name in table_names if str(name).strip()})
+    scenario_id = session.execute(
+        select(Scenario.id).where(Scenario.name == scenario_name, Scenario.study_id == study_id)
+    ).scalar_one_or_none()
+    print("in delete")
+    if scenario_id is None:
+        print("scenario not found, nothing to delete")
+        return
+    if all_tables:
+        
+        print("in delete all tables for scenario")
+        scenario_obj = (
+            session.query(Scenario)
+            .filter_by(id=scenario_id)
+            .first()
+        )
+        if scenario_obj:
+            session.delete(scenario_obj)
+            session.commit()
+        
+        return
     if not cleaned_tables:
         return
-
-    scenario_id = session.execute(
-        select(Scenario.id).where(Scenario.name == scenario_name)
-    ).scalar_one_or_none()
-    if scenario_id is None:
-        return
-
     series_ids_subquery = (
         select(Series.id)
         .join(Table, Table.id == Series.table_id)
@@ -313,7 +353,8 @@ def delete_existing_values_for_scenario_tables(session, scenario_name: str, tabl
             Value.series_id.in_(series_ids_subquery),
         )
     )
-
+    session.commit()
+    print(f"Deleted values for scenario '{scenario_name}' and tables {cleaned_tables}")
 
 def load_table_upload_rules() -> dict:
     """Load the table upload rules from the JSON file, returning an empty dict if the file does not exist or is invalid."""
@@ -575,6 +616,13 @@ def validate_uploaded_dataframe(df: pd.DataFrame, filename: str) -> pd.DataFrame
     return df
 
 
+def get_uploaded_table_names(df: pd.DataFrame) -> list[str]:
+    """Return sorted table names present in a validated Format 1 upload."""
+    if "tableName" not in df.columns:
+        return []
+    return sorted({str(name).strip() for name in df["tableName"] if str(name).strip()})
+
+
 def load_and_validate_uploaded_csvs(files) -> pd.DataFrame:
     validated_frames = []
 
@@ -600,39 +648,39 @@ def load_and_validate_uploaded_csvs(files) -> pd.DataFrame:
     return pd.concat(validated_frames, ignore_index=True)
 
 
-def load_single_csv_file(files, *, context_label: str) -> pd.DataFrame:
-    if not files:
-        raise ValueError("At least one CSV file is required.")
+# def load_single_csv_file(files, *, context_label: str) -> pd.DataFrame:
+#     if not files:
+#         raise ValueError("At least one CSV file is required.")
 
-    if len(files) != 1:
-        raise ValueError(f"{context_label} accepts only one CSV file. Please upload a single file.")
+#     if len(files) != 1:
+#         raise ValueError(f"{context_label} accepts only one CSV file. Please upload a single file.")
 
-    file = files[0]
-    filename = (getattr(file, "filename", "") or "uploaded file").strip()
-    if not filename.lower().endswith(".csv"):
-        raise ValueError(f"'{filename}' is not a CSV file. Please upload a file ending in .csv.")
+#     file = files[0]
+#     filename = (getattr(file, "filename", "") or "uploaded file").strip()
+#     if not filename.lower().endswith(".csv"):
+#         raise ValueError(f"'{filename}' is not a CSV file. Please upload a file ending in .csv.")
 
-    try:
-        df = pd.read_csv(file.stream)
-    except pd.errors.EmptyDataError as exc:
-        raise ValueError(f"'{filename}' is empty. Please upload a CSV file with data rows.") from exc
-    except pd.errors.ParserError as exc:
-        raise ValueError(
-            f"'{filename}' could not be read as a CSV file. Please check the file format."
-        ) from exc
+#     try:
+#         df = pd.read_csv(file.stream)
+#     except pd.errors.EmptyDataError as exc:
+#         raise ValueError(f"'{filename}' is empty. Please upload a CSV file with data rows.") from exc
+#     except pd.errors.ParserError as exc:
+#         raise ValueError(
+#             f"'{filename}' could not be read as a CSV file. Please check the file format."
+#         ) from exc
 
-    if df.empty:
-        raise ValueError(f"'{filename}' is empty. Please upload a CSV file with data rows.")
+#     if df.empty:
+#         raise ValueError(f"'{filename}' is empty. Please upload a CSV file with data rows.")
 
-    cleaned_columns = [str(col).strip() for col in df.columns]
-    duplicate_columns = sorted({col for col in cleaned_columns if cleaned_columns.count(col) > 1})
-    if duplicate_columns:
-        joined = ", ".join(duplicate_columns)
-        raise ValueError(f"'{filename}' has duplicate column names: {joined}.")
+#     cleaned_columns = [str(col).strip() for col in df.columns]
+#     duplicate_columns = sorted({col for col in cleaned_columns if cleaned_columns.count(col) > 1})
+#     if duplicate_columns:
+#         joined = ", ".join(duplicate_columns)
+#         raise ValueError(f"'{filename}' has duplicate column names: {joined}.")
 
-    df = df.copy()
-    df.columns = cleaned_columns
-    return df
+#     df = df.copy()
+#     df.columns = cleaned_columns
+#     return df
 
 
 def load_source_csv_files(files, required_source_tables: list[str]) -> dict[str, tuple[pd.DataFrame, str]]:
@@ -745,9 +793,10 @@ def process_uploaded_csv(
     df,
     scenario_name: str,
     engine,
+    study_id = None, 
     *,
     allow_existing_scenario: bool = False,
-    overwrite_table_names=None,
+    overwrite_table_names= None,
 ):
     SessionLocal = sessionmaker(
         bind=engine,
@@ -757,9 +806,23 @@ def process_uploaded_csv(
     # df = pd.read_csv(csv_path)
     session = SessionLocal()
     try:
+        # print(allow_existing_scenario, "allow_existing_scenario")
         if not allow_existing_scenario:
-            ensure_scenario_not_exists(scenario_name, session)
-        scenario_id = get_or_create_scenario(scenario_name, session)
+            ensure_scenario_not_exists(scenario_name, study_id, session)
+
+        else:
+            scenario_id_deleted = session.execute(select(Scenario.id).where(Scenario.name == scenario_name, Scenario.study_id == study_id)).scalar_one_or_none()
+            # print(scenario_id_deleted, "scenario_id before deletion")
+            delete_existing_values_for_scenario_tables(
+                session,
+                scenario_name,
+                study_id,
+                table_names=(overwrite_table_names if overwrite_table_names is not None else []),
+                all_tables=(allow_existing_scenario and overwrite_table_names == None)
+            )
+            scenario_id_deleted = session.execute(select(Scenario.id).where(Scenario.name == scenario_name, Scenario.study_id == study_id)).scalar_one_or_none()
+            # print(scenario_id_deleted, "scenario_id after deletion")
+        scenario_id = get_or_create_scenario(scenario_name, session, study_id=study_id)
 
         table_map = upsert_tables(df, session)
         series_map = upsert_series(df, table_map, session)
@@ -769,9 +832,10 @@ def process_uploaded_csv(
             delete_existing_values_for_scenario_tables(
                 session,
                 scenario_name,
-                overwrite_table_names,
+                study_id,
+                table_names=overwrite_table_names,
+                all_tables=(allow_existing_scenario and (len(overwrite_table_names) == 0 or overwrite_table_names ==None))
             )
-            session.commit()
 
         values_df = melt_and_map_values(
             df, scenario_id, table_map, series_map
@@ -854,11 +918,11 @@ def read_data_csv(df, table_rule_map, source_table_name, output_table_name=None)
 
     return df.reset_index()
 
-def process_uploaded_csv_by_table_name(table_name, files, engine):
-    return process_uploaded_csv_by_table_names([table_name], files, engine)
+# def process_uploaded_csv_by_table_name(table_name, files, engine):
+#     return process_uploaded_csv_by_table_names([table_name], files, engine)
 
 
-def process_uploaded_csv_by_table_names(table_names, files, engine, *, overwrite_existing_tables: bool = False):
+def process_uploaded_csv_by_table_names(table_names, study_id, files, engine, *, overwrite_existing_tables: bool = False):
     selected_table_names = validate_table_upload_selections(table_names)
     rules = load_table_upload_rules()
     required_source_tables = get_required_source_tables_for_selection(selected_table_names)
@@ -893,7 +957,7 @@ def process_uploaded_csv_by_table_names(table_names, files, engine, *, overwrite
     )
     session = SessionLocal()
     try:
-        conflicts = get_existing_table_conflicts(session, scenario_names, selected_table_names)
+        conflicts = get_existing_table_conflicts(session, scenario_names, selected_table_names, study_id)
     finally:
         session.close()
 
@@ -904,23 +968,44 @@ def process_uploaded_csv_by_table_names(table_names, files, engine, *, overwrite
             "Tick 'Overwrite existing selected tables' to replace them."
         )
 
-    for aScenario in scenario_names:
-        table = pd.pivot_table(
-            data[data["scenario"].astype(str).str.strip() == aScenario],
-            index=['tableName', 'seriesName', 'label'],
-            columns='year',
-            values='total',
-            aggfunc="sum",
-            fill_value=0,
+    data = (
+        data
+        .assign(scenario=data["scenario"].astype(str).str.strip())
+        .groupby(["scenario", "tableName", "seriesName", "label", "year"], as_index=False)["total"]
+        .sum()
+    )
+
+    SessionLocal = sessionmaker(
+        bind=engine,
+        autoflush=False,
+        autocommit=False
+    )
+    session = SessionLocal()
+    try:
+        for scenario_name in scenario_names:
+            delete_existing_values_for_scenario_tables(
+                session,
+                scenario_name,
+                study_id,
+                table_names=selected_table_names,
+            )
+
+        scenario_id_map = {
+            scenario_name: get_or_create_scenario(scenario_name, session, study_id=study_id)
+            for scenario_name in scenario_names
+        }
+        table_map = upsert_tables(data, session)
+        series_map = upsert_series(data, table_map, session)
+        upsert_year_values(data["year"], session)
+        values_df = map_processed_table_upload_values(
+            data,
+            scenario_id_map,
+            table_map,
+            series_map,
         )
-        wide_table = table.reset_index()
-        wide_table.columns = [str(col) for col in wide_table.columns]
-        process_uploaded_csv(
-            wide_table,
-            aScenario,
-            engine,
-            allow_existing_scenario=True,
-            overwrite_table_names=selected_table_names,
-        )
+    finally:
+        session.close()
+
+    bulk_insert_values(values_df, engine)
 
     return scenario_names

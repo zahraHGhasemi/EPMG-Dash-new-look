@@ -1,4 +1,4 @@
-from auth.models import Scenario, StudyScenario, Table, Series, Value, Study
+from auth.models import Scenario, Table, Series, Value, Study
 from sqlalchemy import or_, select
 import pandas as pd
 
@@ -15,32 +15,42 @@ class SQLDataProvider:
             select(Scenario.name).order_by(Scenario.name)
         ).all()
         return [name for (name,) in rows]
-    def get_categories(self, scenario_name=None):
-        """Fetch category labels, optionally filtered by scenario name."""
+
+    def get_scenario_name(self, scenario_id) -> str | None:
+        """Fetch a scenario display name from a scenario ID."""
+        if scenario_id is None:
+            return None
+
+        return self.session.execute(
+            select(Scenario.name).where(Scenario.id == scenario_id)
+        ).scalar_one_or_none()
+
+    def get_categories(self, scenario_id=None):
+        """Fetch category labels, optionally filtered by scenario ID."""
         query = select(Table.category).distinct()
-        if scenario_name:
+        if scenario_id is not None:
             query = (
                 query
                 .join(Series, Series.table_id == Table.id)
                 .join(Value, Value.series_id == Series.id)
-                .join(Scenario, Scenario.id == Value.scenario_id)
-                .where(Scenario.name == scenario_name)
+                .where(Value.scenario_id == scenario_id)
+                
             )
         rows = self.session.execute(query.order_by(Table.category)).all()
         return [cat for (cat,) in rows]
-    def get_subcategories(self, category_label, scenario_name=None):
-        """Fetch distinct table titles for a given category label, optionally filtered by scenario name."""
+
+    def get_subcategories(self, category_label, scenario_id=None):
+        """Fetch distinct table titles for a category, optionally filtered by scenario."""
         if not category_label:
             return []
 
         query = select(Table.title).where(Table.category == category_label)
-        if scenario_name:
+        if scenario_id is not None:
             query = (
                 query
                 .join(Series, Series.table_id == Table.id)
                 .join(Value, Value.series_id == Series.id)
-                .join(Scenario, Scenario.id == Value.scenario_id)
-                .where(Scenario.name == scenario_name)
+                .where(Value.scenario_id == scenario_id)
             )
         rows = self.session.execute(query.distinct().order_by(Table.title)).all()
         return [title for (title,) in rows]
@@ -62,12 +72,11 @@ class SQLDataProvider:
         # Collect series titles
         return [label for (label,) in row]
     
-    def get_filtered_df(self, table_id, scenario_name, year_range):
-        """Fetch a DataFrame of series titles, years, and values for a given table ID, scenario name, and year range."""
-        scenario_id = self.session.execute(
-            select(Scenario.id)
-            .where(Scenario.name == scenario_name)
-        ).scalar_one()
+    def get_filtered_df(self, table_id, scenario_id, year_range):
+        """Fetch series values for a table, scenario ID, and year range."""
+        empty = pd.DataFrame(columns=["seriesTitle", "seriesName", "Year", "Value"])
+        if scenario_id is None or table_id is None:
+            return empty
 
         # Join Value → Series → Table → Year
         query = (
@@ -147,8 +156,7 @@ class SQLDataProvider:
         """Fetch scenarios associated with a given study ID."""
         return (
             self.session.query(Scenario)
-            .join(StudyScenario)
-            .filter(StudyScenario.study_id == study_id)
+            .filter(Scenario.study_id == study_id)
             .order_by(Scenario.name)
             .all()
         )
@@ -166,11 +174,8 @@ class SQLDataProvider:
         return self.get_studies_by_status("archive")
     def get_ongoing_studies(self):
         return self.get_studies_by_status("ongoing")
-    def check_table_include_name(self, scenario_name, category_prefix, name_substrings):
+    def check_table_include_name(self, scenario_id, category_prefix, name_substrings):
         """Check if tables for a given scenario and category prefix include any of the specified substrings in their names."""
-        scenario_id = self.session.execute(
-        select(Scenario.id).where(Scenario.name == scenario_name)
-        ).scalar_one_or_none()
 
         if scenario_id is None:
             return []

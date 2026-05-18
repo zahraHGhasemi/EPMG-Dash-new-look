@@ -142,12 +142,17 @@ def _collect_series_form_state(form) -> tuple[list[int], dict[int, dict[str, str
     return changed_series_ids, changed_series_values, current_series_values
 
 
-def _apply_table_title_update(form, table: Table) -> None:
-    """Update a table title from the edit form, falling back to the internal table name."""
+def _apply_table_metadata_update(form, table: Table) -> None:
+    """Update table display metadata from the edit form."""
     new_table_title = (form.get("table_title") or "").strip()
     original_table_title = (form.get("original_table_title") or "").strip()
     if new_table_title != original_table_title:
         table.title = new_table_title or table.name
+
+    new_table_label = (form.get("table_label") or "").strip()
+    original_table_label = (form.get("original_table_label") or "").strip()
+    if new_table_label != original_table_label:
+        table.label = new_table_label or None
 
 
 def _apply_series_values(series_rows: list[Series], values_by_name: dict[str, dict[str, str | None]]) -> None:
@@ -232,7 +237,7 @@ def save_edit_titles_form(form) -> tuple[str, str, str, int | None]:
     if selected_category and table.category != selected_category:
         raise ValueError("Selected table does not belong to the chosen sector.")
 
-    _apply_table_title_update(form, table)
+    _apply_table_metadata_update(form, table)
     changed_series_ids, changed_series_values, current_series_values = _collect_series_form_state(form)
 
     if propagate_series == "global":

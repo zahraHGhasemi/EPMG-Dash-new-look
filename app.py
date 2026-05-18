@@ -9,7 +9,7 @@ from flask_session import Session
 from flask import redirect, request
 from data_provider.sql_data import SQLDataProvider
 from utils.dashboard_settings import get_dashboard_settings
-from utils.schema_migrations import ensure_series_color_schema
+from utils.schema_migrations import ensure_scenario_study_fk_schema, ensure_series_color_schema
 import os
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
@@ -27,6 +27,7 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()
+    ensure_scenario_study_fk_schema()
     # ensure_series_color_schema()
 
 app.register_blueprint(auth_bp)

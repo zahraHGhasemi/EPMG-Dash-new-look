@@ -3,6 +3,72 @@ from sqlalchemy import inspect, text
 from auth.models import db, next_available_series_color, normalize_series_color, pastel_continuous_palette
 
 
+def ensure_scenario_study_fk_schema() -> None:
+    """Ensure scenarios.study_id preserves scenarios when a study is deleted."""
+    engine = db.engine
+    inspector = inspect(engine)
+
+    if "scenarios" not in inspector.get_table_names() or "studies" not in inspector.get_table_names():
+        return
+
+    existing_columns = {col["name"] for col in inspector.get_columns("scenarios")}
+    if "study_id" not in existing_columns:
+        return
+
+    foreign_keys = [
+        fk
+        for fk in inspector.get_foreign_keys("scenarios")
+        if fk.get("constrained_columns") == ["study_id"]
+        and fk.get("referred_table") == "studies"
+    ]
+    expected_name = "fk_scenarios_study_id_studies"
+    already_set_null = any(
+        (fk.get("options") or {}).get("ondelete", "").upper() == "SET NULL"
+        for fk in foreign_keys
+    )
+
+    if already_set_null:
+        return
+
+    if engine.dialect.name != "postgresql":
+        return
+
+    with engine.begin() as conn:
+        invalid = conn.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM scenarios
+                LEFT JOIN studies ON studies.id = scenarios.study_id
+                WHERE scenarios.study_id IS NOT NULL
+                AND studies.id IS NULL
+                """
+            )
+        ).scalar()
+        if invalid:
+            raise RuntimeError(
+                "Cannot add scenarios.study_id foreign key because some scenarios "
+                "reference studies that no longer exist."
+            )
+
+        for fk in foreign_keys:
+            name = fk.get("name")
+            if name:
+                conn.execute(text(f'ALTER TABLE scenarios DROP CONSTRAINT "{name}"'))
+
+        conn.execute(
+            text(
+                f"""
+                ALTER TABLE scenarios
+                ADD CONSTRAINT {expected_name}
+                FOREIGN KEY (study_id)
+                REFERENCES studies(id)
+                ON DELETE SET NULL
+                """
+            )
+        )
+
+
 def ensure_series_color_schema() -> None:
     """Add series.color and uniqueness per table for existing databases."""
     engine = db.engine

@@ -1,12 +1,9 @@
 
 from dash import Input, Output, State
 import plotly.graph_objects as go
-import pandas as pd
-import colorsys
 from data_provider.sql_data import SQLDataProvider
 from urllib.parse import urlparse, parse_qs
-from auth.models import db, normalize_series_color
-from utils.dashboard_settings import get_dashboard_settings
+from auth.models import db
 from utils.plotly_download import build_plotly_download_config
 
 from utils.sankey_helpers import(
@@ -42,17 +39,16 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
 
         scenarios = provider.get_scenarios_for_study(int(study_id))
 
-        options = [{"label": s.name, "value": s.name} for s in scenarios]
-        configured = get_dashboard_settings().get("default_scenario")
-        option_values = {opt["value"] for opt in options}
-        if current_value in option_values:
+        options = [{"label": scenario.name, "value": str(scenario.id)} for scenario in scenarios]
+        print(current_value, "current_value")
+        if current_value in [options[i]['value'] for i in range(len(options))]:
             value = current_value
-        elif configured in option_values:
-            value = configured
         else:
             value = options[0]["value"] if options else None
 
         return options, value
+    
+
     @app.callback(
         Output('sankey_title_dropdown', 'options'),
         Output('sankey_title_dropdown', 'value'),
@@ -114,9 +110,10 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
             year = [None, None]
 
         title_label = get_sankey_title_label(title)
+        scenario_name = provider.get_scenario_name(scenario)
         start_config = build_plotly_download_config(
             "sankey",
-            scenario,
+            scenario_name,
             title_label,
             year[0],
             year[1],
@@ -124,7 +121,7 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
         )
         end_config = build_plotly_download_config(
             "sankey",
-            scenario,
+            scenario_name,
             title_label,
             year[0],
             year[1],
@@ -161,7 +158,7 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
                 node,
                 node_indices,
                 node_colors,
-                scenario=scenario,
+                scenario=scenario_name,
                 title_label=title_label,
             ),
             draw_sankey(
@@ -170,7 +167,7 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
                 node,
                 node_indices,
                 node_colors,
-                scenario=scenario,
+                scenario=scenario_name,
                 title_label=title_label,
             ),
             start_config,

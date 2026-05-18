@@ -17,57 +17,50 @@
         {% endfor %}
       {% endif %}
     {% endwith %}
+    <div>
+        <p class="text-muted">Update assigned study to each scenario. Each scenario can only be linked to one study at a time. In each study, same scenario names are not allowed.</p>
+    </div>
 
     <form method="POST">
-        <div class="mb-3">
-            <label for="study">Select Study:</label>
-            <select class="form-select" id="study" name="study_id" onchange="loadLinkedScenarios()">
-                <option value="">-- Choose a Study --</option>
+
+        {% for scenario in scenarios %}
+
+        <div class="card mb-3 p-3">
+
+            <label class="form-label fw-bold">
+                {{ scenario.name }}
+            </label>
+
+            <select class="form-select"
+                    name="scenario_{{ scenario.id }}">
+                {% if not scenario.study_id %}
+                    <option value="" selected>
+                        Deleted study / No study
+                    </option>
+                
+                {% endif %}
                 {% for study in studies %}
-                    <option value="{{ study.id }}">{{ study.name }}</option>
+                    <option value="{{ study.id }}"
+                        {% if scenario.study_id == study.id %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ study.name }}
+                    </option>
                 {% endfor %}
+                        
             </select>
+
         </div>
 
-        <div class="mb-3" id="scenarios-list">
-            <label>Scenarios:</label>
-            <div class="form-check" id="scenario-checkboxes">
-                {% for scenario in scenarios %}
-                    <input class="form-check-input" type="checkbox"
-                           name="scenarios" value="{{ scenario.id }}"
-                           id="sc-{{ scenario.id }}">
-                    <label class="form-check-label" for="sc-{{ scenario.id }}">
-                        {{ scenario.name }}
-                    </label><br>
-                {% endfor %}
-            </div>
-        </div>
+        {% endfor %}
 
-        <button type="submit" class="btn btn-primary">Update Links</button>
+        <button type="submit"
+                class="btn btn-primary">
+            Update Assignments
+        </button>
+
     </form>
 </div>
-
-<script>
-    const studyScenarioMap = {
-        {% for study in studies %}
-            {{ study.id }}: [
-                {% for scenario in study.scenarios %}
-                    {{ scenario.id }},
-                {% endfor %}
-            ],
-        {% endfor %}
-    };
-
-    function loadLinkedScenarios() {
-        const studyId = document.getElementById("study").value;
-        const linked = studyScenarioMap[studyId] || [];
-
-        document.querySelectorAll(
-            '#scenario-checkboxes input[type="checkbox"]'
-        ).forEach(cb => {
-            cb.checked = linked.includes(parseInt(cb.value));
-        });
-    }
-</script>
 
 {% endblock %}

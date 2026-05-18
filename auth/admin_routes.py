@@ -11,7 +11,6 @@ from auth.models import (
     Value,
     db,
     Scenario,
-    StudyScenario,
     Study,
     Series,
     StudyAbout,
@@ -28,6 +27,7 @@ from utils.update_db_table import (
     get_source_table_options,
     get_table_upload_source_map,
     get_table_upload_options,
+    get_uploaded_table_names,
     load_and_validate_uploaded_csvs,
     process_uploaded_csv_by_table_names,
     process_uploaded_csv,
@@ -119,6 +119,7 @@ def upload_scenario():
     """Upload scenario CSV data in either supported single-file or table-based format."""
     def _render_upload_page(selected_format=SUPPORTED_UPLOAD_FORMAT):
         """Render the upload form with the requested upload format selected."""
+        provider = SQLDataProvider(db.session)
         if selected_format not in {SUPPORTED_UPLOAD_FORMAT, TABLE_UPLOAD_FORMAT}:
             selected_format = SUPPORTED_UPLOAD_FORMAT
         return render_template(
@@ -127,6 +128,7 @@ def upload_scenario():
             selected_upload_format=selected_format,
             available_table_upload_options=get_table_upload_options(),
             table_upload_source_map=get_table_upload_source_map(),
+            studies= Study.query.order_by(Study.name.asc()).all(),
         )
 
     if request.method == "GET":
@@ -138,7 +140,12 @@ def upload_scenario():
     upload_format = request.form.get("upload_format")
     selected_table_names = request.form.getlist("table_upload_names")
     overwrite_existing_tables = bool(request.form.get("overwrite_existing_tables"))
-
+    study_id = request.form.get("study", type=int)
+    overwrite_existing_scenarios = bool(request.form.get("overwrite_existing_scenarios"))
+    scenario_overwrite_scope = (request.form.get("scenario_overwrite_scope") or "").strip()
+    if not study_id:
+        flash("Study selection is required.", "danger")
+        return redirect(url_for("admin.upload_scenario", upload_format=upload_format or SUPPORTED_UPLOAD_FORMAT))
     if not scenario_name:
         scenario_name = _infer_scenario_name_from_files(files)
 
@@ -159,30 +166,33 @@ def upload_scenario():
 
         # For the scenario-based format, the scenario name is determined by the filename and not required as a separate input, so we only validate the scenario name for the single-file format.
         if selected_upload_format == SUPPORTED_UPLOAD_FORMAT:
-            df = load_and_validate_uploaded_csvs(files)
+            if overwrite_existing_scenarios and scenario_overwrite_scope not in {
+                "entire_scenario",
+                "uploaded_tables",
+            }:
+                raise ValueError("Choose how to overwrite the existing scenario.")
 
-            # Check if scenario exists
-            exists = db.session.query(Scenario).filter_by(name=scenario_name).first()
-            if exists:
-                flash(
-                    f"Scenario '{scenario_name}' already exists. "
-                    "Please delete it first before uploading a new one.",
-                    "warning"
-                )
-                return redirect(url_for("admin.upload_scenario", upload_format=SUPPORTED_UPLOAD_FORMAT))
+            df = load_and_validate_uploaded_csvs(files)
+            overwrite_table_names = None
+            if overwrite_existing_scenarios and scenario_overwrite_scope == "uploaded_tables":
+                overwrite_table_names = get_uploaded_table_names(df)
 
             process_uploaded_csv(
                 df=df,  
                 scenario_name=scenario_name,
-                engine=db.get_engine()
+                engine=db.get_engine(),
+                study_id=study_id,
+                allow_existing_scenario=overwrite_existing_scenarios,
+                overwrite_table_names=overwrite_table_names,
             )
-
-            flash(f"Scenario '{scenario_name}' uploaded successfully!", "success")
+            study_name = db.session.get(Study, study_id).name if db.session.get(Study, study_id) else "Unknown Study"
+            flash(f"Scenario '{scenario_name}' uploaded successfully in study {study_name}!", "success")
         # For the table-based format, we validate the selected table names and process each uploaded CSV according to its corresponding table definition.
         else:
             selected_table_names = validate_table_upload_selections(selected_table_names)
             uploaded_scenarios = process_uploaded_csv_by_table_names(
                 table_names=selected_table_names,
+                study_id=study_id,
                 files=files,
                 engine=db.get_engine(),
                 overwrite_existing_tables=overwrite_existing_tables,
@@ -296,35 +306,35 @@ def default_values():
 def remove_scenarios_page():
     """List scenarios and delete the selected scenarios from the database."""
     if request.method == "GET":
-        provider = SQLDataProvider(db.session())
-        scenarios = provider.get_scenarios()  
-        return render_template("admin/remove_scenario.html", scenarios=scenarios)
-
+        scenarios = Scenario.query.order_by(Scenario.name.asc()).all() 
+        studies = Study.query.order_by(Study.name.asc()).all()
+        return render_template("admin/remove_scenario.html", scenarios=scenarios, studies=studies)
 
     if request.method == "POST":
         scenarios = request.form.getlist("scenarios")  
-
+        print(scenarios, "scenarios to delete")
         if not scenarios:
             flash("No scenarios selected", "warning")
             return redirect(url_for("admin.remove_scenarios_page"))
 
         # Delete each scenario from the database
         deleted_scenarios = []
-        for scenario in scenarios:
+        for scenario_id in scenarios:
             try:
                 scenario_obj = (
                     db.session.query(Scenario)
-                    .filter_by(name=scenario)
+                    .filter_by(id=scenario_id)
                     .first()
                 )
+                study_name = Study.query.filter(Study.id == scenario_obj.study_id).first().name if scenario_obj and scenario_obj.study_id else "No Study" 
                 if scenario_obj:
                     db.session.delete(scenario_obj)
                     db.session.commit()
 
                 
-                deleted_scenarios.append(scenario)
+                deleted_scenarios.append(scenario_obj.name + f" from study {study_name}")
             except Exception as e:
-                flash(f"Error deleting {scenario}: {str(e)}", "danger")
+                flash(f"Error deleting {scenario_obj.name} from study {study_name}: {str(e)}", "danger")
 
         if deleted_scenarios:
             flash(f"Deleted scenarios: {', '.join(deleted_scenarios)}", "success")
@@ -392,31 +402,34 @@ def admin_studies():
     if request.method == "POST":
         action = request.form.get("action", "add")
         name = (request.form.get("name") or "").strip()
-
+        #check if the new name already exists for a different study
+        existing_study = db.session.query(Study).filter(Study.name == name).first()
+        if existing_study:
+            flash("A different study with that name already exists. Please choose a unique name.", "danger")
+            return redirect(url_for("admin.admin_studies"))
         if action == "update":
             study_id = request.form.get("study_id", type=int)
             study = db.session.get(Study, study_id) if study_id else None
 
             if not study:
-                flash("Study not found.")
+                flash("Study not found.", "warning")
                 return redirect(url_for("admin.admin_studies"))
 
             if not name:
-                flash("Please enter a study name.")
+                flash("Please enter a study name.", "warning")
                 return redirect(url_for("admin.admin_studies"))
-
             study.name = name
             db.session.commit()
-            flash("Study name updated successfully!")
+            flash("Study name updated successfully!", "success")
             return redirect(url_for("admin.admin_studies"))
 
         status = request.form.get("status")
         about_md = (request.form.get("about_md") or "").strip()
 
         if not name or not status:
-            flash("Please enter both name and status")
+            flash("Please enter both name and status", "warning")
             return redirect(url_for("admin.admin_studies"))
-
+        
         new_study = Study(name=name, status=status)
         db.session.add(new_study)
         db.session.flush()
@@ -426,7 +439,7 @@ def admin_studies():
 
         db.session.commit()
 
-        flash("Study added successfully!")
+        flash("Study added successfully!", "success")
         return redirect(url_for("admin.admin_studies"))
     
     # GET request → list existing studies
@@ -437,25 +450,75 @@ def admin_studies():
 @login_required
 @admin_required
 def study_scenarios_page():
-    """Manage which scenarios are linked to each study."""
+    """Manage study assignments for scenarios to ensure consistent scenario categorization within studies."""
     studies = Study.query.order_by(Study.name).all()
     scenarios = Scenario.query.order_by(Scenario.name).all()
 
     if request.method == "POST":
-        study_id = int(request.form.get("study_id"))
-        selected_scenario_ids = request.form.getlist("scenarios")  # list of scenario ids as str
+        seen = set()
+        duplicates = []
 
-        StudyScenario.query.filter_by(study_id=study_id).delete()
+        # Validate first if same studies assinged to same scenario names, which would cause issues with the scenario dropdown and filtering in the charts.
+        # We want to stop the update and show a clear message if this occurs, rather than allowing partial updates that result in a broken state.
+        for scenario in scenarios:
 
-        for scenario_id in selected_scenario_ids:
-            db.session.add(StudyScenario(
-                study_id=study_id,
-                scenario_id=int(scenario_id)
-            ))
+            study_id = request.form.get(
+                f"scenario_{scenario.id}"
+            )
+
+            if study_id:
+
+                key = (
+                    scenario.name.strip().lower(),
+                    int(study_id)
+                )
+
+                if key in seen:
+                    duplicates.append(
+                        f"Scenario '{scenario.name}' "
+                        f"is duplicated in the same study."
+                    )
+                else:
+                    seen.add(key)
+
+        # Stop update if duplicates exist
+        if duplicates:
+
+            for message in duplicates:
+                flash(message, "warning")
+
+            flash(
+                "Updates were not saved because duplicate "
+                "scenario names exist within the same study.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("admin.study_scenarios_page")
+            )
+
+        # Apply updates only if validation passes
+        for scenario in scenarios:
+
+            study_id = request.form.get(
+                f"scenario_{scenario.id}"
+            )
+
+            if study_id:
+                scenario.study_id = int(study_id)
+            else:
+                scenario.study_id = None
 
         db.session.commit()
-        flash("Study-Scenario links updated successfully.", "success")
-        return redirect(url_for("admin.study_scenarios_page"))
+
+        flash(
+            "Scenario study assignments updated successfully.",
+            "success"
+        )
+
+        return redirect(
+            url_for("admin.study_scenarios_page")
+        )
 
     return render_template(
         "admin/study_scenarios.html",
@@ -710,9 +773,9 @@ def preview_download_tables():
 def download_tables():
     """Render the download page or stream selected scenario table data as a CSV file."""
     scenarios = Scenario.query.order_by(Scenario.name.asc()).all()
-
+    studies = Study.query.order_by(Study.name.asc()).all()
     if request.method == "GET":
-        return render_template("admin/download_tables.html", scenarios=scenarios)
+        return render_template("admin/download_tables.html", scenarios=scenarios, studies=studies)
 
     scenario_id = request.form.get("scenario")
     download_format = request.form.get("download_format", "melted")
@@ -749,8 +812,15 @@ def download_tables():
         .replace("/", "_")
         .replace("\\", "_")
     )
+    study_name = scenario.study.name if scenario.study else "No Study"
+    safe_study_name = (
+        study_name.strip()
+        .replace(" ", "_")
+        .replace("/", "_")
+        .replace("\\", "_")
+    )
 
-    filename = f"{safe_scenario_name}_{download_format}_tables.csv"
+    filename = f"{safe_study_name}_{safe_scenario_name}_{download_format}_tables.csv"
 
     return Response(
         csv_data,

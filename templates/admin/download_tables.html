@@ -39,7 +39,18 @@
                         <select class="form-select" id="scenario" name="scenario" required>
                             <option value="" selected disabled>Select a scenario</option>
                             {% for scenario in scenarios %}
-                                <option value="{{ scenario.id }}">{{ scenario.name }}</option>
+                                <option value="{{ scenario.id }}">
+                                    {{ scenario.name }}
+                                        {% if scenario.study_id %}
+                                            (
+                                            {% for study in studies %}
+                                                {% if study.id == scenario.study_id %}
+                                                    {{ study.name }}
+                                                {% endif %}
+                                            {% endfor %}
+                                            )
+                                        {% endif %}
+                                </option>
                             {% endfor %}
                         </select>
                     </div>

@@ -20,15 +20,15 @@ class User(UserMixin, db.Model):
 
 
 class Study(db.Model):
-    """A study grouping that can be linked to one or more scenarios."""
+    """A study grouping that owns one or more scenarios."""
     __tablename__ = "studies"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     status = db.Column(db.String(20), nullable=False)
     scenarios = db.relationship(
         "Scenario",
-        secondary="study_scenarios",
-        back_populates="studies"
+        back_populates="study",
+        foreign_keys="Scenario.study_id",
     )
     
     about = db.relationship(
@@ -41,21 +41,15 @@ class Scenario(db.Model):
     """Named scenario whose values can be attached to studies and downloaded."""
     __tablename__ = "scenarios"
     id = db.Column(db.Integer, primary_key=True)
+    study_id = db.Column(db.Integer, db.ForeignKey("studies.id", ondelete="SET NULL"), nullable=True)
     name = db.Column(db.String(100), nullable=False)
-    studies = db.relationship(
+    study = db.relationship(
         "Study",
-        secondary="study_scenarios",
-        back_populates="scenarios"
+        back_populates="scenarios",
+        foreign_keys=[study_id],
     )
-
-class StudyScenario(db.Model):
-    """Join table that links studies and scenarios without duplicate pairs."""
-    __tablename__ = 'study_scenarios'
-    id = db.Column(db.Integer, primary_key=True)
-    study_id = db.Column(db.Integer, db.ForeignKey('studies.id', ondelete='CASCADE'))
-    scenario_id = db.Column(db.Integer, db.ForeignKey('scenarios.id', ondelete='CASCADE'))
     __table_args__ = (
-        db.UniqueConstraint('study_id', 'scenario_id', name='uq_study_scenario'),
+        db.UniqueConstraint("study_id", "name", name="uq_scenarios_study_name"),
     )
 
 class Table(db.Model):
