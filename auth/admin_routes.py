@@ -1,10 +1,11 @@
 from functools import wraps
-from flask import Blueprint, Response, jsonify, render_template
+from flask import Blueprint, Response, jsonify, render_template, send_file
 from flask_login import login_required, current_user
 from flask import request, redirect, flash, url_for
 import os
 import io
 import csv
+import json
 from data_provider.sql_data import SQLDataProvider
 from auth.models import (
     Table,
@@ -22,8 +23,11 @@ from utils.edit_titles import (
 )
 from utils.update_db_table import (
     SUPPORTED_UPLOAD_FORMAT,
+    TABLE_INFO_PATH,
     TABLE_UPLOAD_FORMAT,
     add_table_upload_rule,
+    analyze_table_upload_rule_example,
+    delete_table_upload_rule,
     get_source_table_options,
     get_table_upload_source_map,
     get_table_upload_options,
@@ -72,6 +76,33 @@ def _infer_scenario_name_from_files(files):
             return stem
     return ""
 
+
+def _get_reserved_table_upload_names():
+    """Return table names already used in table_info or the database."""
+    table_info_names = set(get_table_upload_options())
+    database_names = {
+        name
+        for (name,) in db.session.query(Table.name).distinct().all()
+        if name
+    }
+    return sorted(table_info_names | database_names)
+
+
+def _ensure_new_table_name_is_available(table_name):
+    """Validate that a proposed upload table name is not already reserved."""
+    normalized_name = (table_name or "").strip()
+    if not normalized_name:
+        raise ValueError("New tableName is required.")
+
+    reserved_names = _get_reserved_table_upload_names()
+    reserved_lookup = {name.casefold(): name for name in reserved_names}
+    existing_name = reserved_lookup.get(normalized_name.casefold())
+    if existing_name:
+        raise ValueError(
+            f"tableName '{existing_name}' already exists in table_info or the database. "
+            "Please enter a new tableName."
+        )
+
 @admin_bp.route("/panel")
 @login_required
 @admin_required
@@ -85,30 +116,79 @@ def admin_panel():
 @admin_required
 def manage_table_upload_rules():
     """Display and create table upload rules used by the table-based CSV uploader."""
+    example_context = None
+    form_values = {}
+    reserved_table_names = _get_reserved_table_upload_names()
+    table_info_table_names = get_table_upload_options()
     if request.method == "POST":
+        form_values = request.form
+        action = (request.form.get("action") or "add_rule").strip()
         try:
-            new_table_name = add_table_upload_rule(
-                table_name=request.form.get("new_table_name"),
-                source_name=request.form.get("new_table_source_name"),
-                keep_dimensions=request.form.get("new_table_keep_dimensions"),
-                default_unit=request.form.get("new_table_default_unit"),
-                aggregation=request.form.get("new_table_aggregation"),
-                filter_column=request.form.get("new_table_filter_column"),
-                filter_values_text=request.form.get("new_table_filter_values"),
-                reverse_sign=bool(request.form.get("new_table_reverse_sign")),
-                cumulate=bool(request.form.get("new_table_cumulate")),
-            )
-            flash(
-                f"table_info updated successfully. New table '{new_table_name}' is now available.",
-                "success",
-            )
+            if action == "analyze_example":
+                example_file = request.files.get("example_file")
+                example_context = analyze_table_upload_rule_example(example_file)
+                flash(
+                    f"Example file '{example_context['filename']}' loaded. Choose the rule settings below.",
+                    "success",
+                )
+            elif action == "delete_rule":
+                deleted_table_name = delete_table_upload_rule(request.form.get("delete_table_name"))
+                flash(
+                    f"Deleted table_info rule '{deleted_table_name}'. You can add a new rule for that tableName now.",
+                    "success",
+                )
+                return redirect(url_for("admin.manage_table_upload_rules"))
+            else:
+                filter_values_text = "\n".join(request.form.getlist("new_table_filter_values"))
+                _ensure_new_table_name_is_available(request.form.get("new_table_name"))
+                new_table_name = add_table_upload_rule(
+                    table_name=request.form.get("new_table_name"),
+                    source_name=request.form.get("new_table_source_name"),
+                    keep_dimensions=request.form.get("new_table_keep_dimensions"),
+                    default_unit=request.form.get("new_table_default_unit"),
+                    aggregation=request.form.get("new_table_aggregation"),
+                    filter_column=request.form.get("new_table_filter_column"),
+                    filter_values_text=filter_values_text,
+                    reverse_sign=bool(request.form.get("new_table_reverse_sign")),
+                    cumulate=bool(request.form.get("new_table_cumulate")),
+                )
+                flash(
+                    f"table_info updated successfully. New table '{new_table_name}' is now available.",
+                    "success",
+                )
+                return redirect(url_for("admin.manage_table_upload_rules"))
         except Exception as e:
+            if action == "add_rule":
+                try:
+                    example_context = json.loads(request.form.get("example_context_json") or "null")
+                except json.JSONDecodeError:
+                    example_context = None
             flash(f"Could not add new table definition: {e}", "danger")
-        return redirect(url_for("admin.manage_table_upload_rules"))
 
     return render_template(
         "admin/table_upload_rules.html",
         available_source_table_options=get_source_table_options(),
+        example_context=example_context,
+        form_values=form_values,
+        reserved_table_names=reserved_table_names,
+        table_info_table_names=table_info_table_names,
+    )
+
+
+@admin_bp.route("/table-upload-rules/download", methods=["GET"])
+@login_required
+@admin_required
+def download_table_upload_rules():
+    """Download the current table_info.json file."""
+    if not TABLE_INFO_PATH.exists():
+        flash("table_info.json was not found.", "danger")
+        return redirect(url_for("admin.manage_table_upload_rules"))
+
+    return send_file(
+        TABLE_INFO_PATH,
+        as_attachment=True,
+        download_name="table_info.json",
+        mimetype="application/json",
     )
 
     

@@ -3,14 +3,14 @@
 {% block content %}
 <div class="mb-3">
     <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-outline-secondary">
-        ← Back
+        Back
     </a>
 </div>
 
 <div class="container mt-4">
     <h2 class="mb-3">Manage Table Upload Rules</h2>
     <p class="text-muted mb-4">
-        Add a new derived <code>tableName</code> to <code>table_info.json</code> for Format 2 uploads.
+        Upload an example source CSV first, then create the rule from the columns and values found in that file.
     </p>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -21,69 +21,181 @@
       {% endif %}
     {% endwith %}
 
+    <div class="border rounded p-4 mb-4">
+        <h5 class="mb-3">1. Upload Example File</h5>
+        <form method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="analyze_example">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label">Example source CSV</label>
+                    <input type="file" class="form-control" name="example_file" accept=".csv" required>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">Load Columns</button>
+                </div>
+                
+            </div>
+        </form>
+    </div>
+    <div class="border rounded p-4 mb-4">
+        <h5 class="mb-3">2. Download Current Rules</h5>
+        <div class="col-md-3">
+            <a
+                href="{{ url_for('admin.download_table_upload_rules') }}"
+                class="btn btn-outline-secondary w-100"
+            >
+                Download table_info
+            </a>
+        </div>
+    </div>
+
+    <div class="border rounded p-4 mb-4">
+        <h5 class="mb-3">3. Delete Existing Rule</h5>
+        <form method="POST">
+            <input type="hidden" name="action" value="delete_rule">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-8">
+                    <label class="form-label">Current table_info tableName</label>
+                    <select class="form-select" name="delete_table_name" required>
+                        <option value="">Choose a table rule</option>
+                        {% for table_name in table_info_table_names %}
+                            <option value="{{ table_name }}">{{ table_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-outline-danger w-100">
+                        Delete Rule
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {% if example_context %}
     <div class="border rounded p-4">
+        <h5 class="mb-3">4. Add Rule</h5>
         <p class="text-muted mb-3">
-            <code>source name</code> is the source CSV name that the rule reads from. For example, one source CSV such as <code>TRA_Passenger_Land_Mode.csv</code> can be used to build <code>TRA_Passenger_Land_Mode</code>, <code>TRA_Passenger_Land_Mode-S</code>, <code>TRA_Passenger_Land_Mode-M</code>, or <code>TRA_Passenger_Land_Mode-L</code> with different filters.
+            Source name will be saved as <code>{{ example_context.source_name }}</code>, based on
+            <code>{{ example_context.filename }}</code>.
         </p>
 
         <form method="POST">
+            <input type="hidden" name="action" value="add_rule">
+            <input type="hidden" name="new_table_source_name" value="{{ example_context.source_name }}">
+            <input type="hidden" name="example_context_json" value='{{ example_context | tojson }}'>
+
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label">New tableName</label>
-                    <input type="text" class="form-control" name="new_table_name" placeholder="e.g. MY_NEW_TABLE" required>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Source name (source CSV name)</label>
+                    <label class="form-label">New table name (tableName as id) *</label>
                     <input
                         type="text"
                         class="form-control"
-                        name="new_table_source_name"
-                        list="source-table-options"
-                        placeholder="e.g. TRA_Passenger_Land_Mode"
+                        id="new-table-name-input"
+                        name="new_table_name"
+                        list="reserved-table-name-options"
+                        value="{{ form_values.get('new_table_name', '') }}"
+                        placeholder="e.g. MY_NEW_TABLE"
                         required
                     >
-                    <datalist id="source-table-options">
-                        {% for source_table in available_source_table_options %}
-                            <option value="{{ source_table }}"></option>
+                    <datalist id="reserved-table-name-options">
+                        {% for table_name in reserved_table_names %}
+                            <option value="{{ table_name }}"></option>
                         {% endfor %}
                     </datalist>
+                    <div id="table-name-warning" class="form-text text-danger d-none">
+                        This tableName already exists in table_info or the database. Enter a new name.
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Source name *</label>
+                    <input type="text" class="form-control" value="{{ example_context.source_name }}" disabled>
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">keepDimensions</label>
-                    <input type="text" class="form-control" name="new_table_keep_dimensions" placeholder="e.g. Commodity" required>
+                    <label class="form-label"> Main column (keepDimensions) *</label>
+                    <select class="form-select" name="new_table_keep_dimensions" required>
+                        {% for column in example_context.candidate_columns %}
+                            <option value="{{ column }}" {% if form_values.get('new_table_keep_dimensions') == column %}selected{% endif %}>{{ column }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">defaultUnit</label>
-                    <input type="text" class="form-control" name="new_table_default_unit" placeholder="e.g. PJ" required>
+                    <label class="form-label">Default unit *</label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        name="new_table_default_unit"
+                        value="{{ form_values.get('new_table_default_unit', '') }}"
+                        placeholder="e.g. PJ"
+                        required
+                    >
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">aggregation</label>
-                    <input type="text" class="form-control" name="new_table_aggregation" value="sum" required>
+                    <label class="form-label">Aggregation *</label>
+                    <select class="form-select" name="new_table_aggregation" required>
+                        <option value="sum" {% if form_values.get('new_table_aggregation', 'sum') == 'sum' %}selected{% endif %}>sum</option>
+                        <option value="mean" {% if form_values.get('new_table_aggregation') == 'mean' %}selected{% endif %}>mean</option>
+                    </select>
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">filter column</label>
-                    <input type="text" class="form-control" name="new_table_filter_column" placeholder="Optional">
+                    <label class="form-label">Filter column *</label>
+                    <select class="form-select" id="filter-column-select" name="new_table_filter_column">
+                        <option value="">No filter</option>
+                        {% for column in example_context.candidate_columns %}
+                            <option value="{{ column }}" {% if form_values.get('new_table_filter_column') == column %}selected{% endif %}>{{ column }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div class="col-md-8">
-                    <label class="form-label">filter values</label>
-                    <input type="text" class="form-control" name="new_table_filter_values" placeholder="Optional, comma separated">
+                    <label class="form-label">Filter values *</label>
+                    <div id="filter-values-empty" class="form-text">
+                        Choose a filter column to select values.
+                    </div>
+                    {% for column, values in example_context.filter_values_by_column.items() %}
+                        <div class="filter-values-group d-none border rounded p-2" data-filter-column="{{ column }}">
+                            {% if values %}
+                                <div class="row g-2">
+                                    {% for value in values %}
+                                        <div class="col-md-4">
+                                            <div class="form-check">
+                                                <input
+                                                    class="form-check-input filter-value-checkbox"
+                                                    type="checkbox"
+                                                    name="new_table_filter_values"
+                                                    value="{{ value }}"
+                                                    id="filter-{{ loop.index }}-{{ column }}"
+                                                    {% if value in form_values.getlist('new_table_filter_values') %}checked{% endif %}
+                                                    disabled
+                                                >
+                                                <label class="form-check-label" for="filter-{{ loop.index }}-{{ column }}">
+                                                    {{ value }}
+                                                </label>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="form-text">No non-empty values found for this column.</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
                 </div>
 
                 <div class="col-md-6">
                     <div class="form-check mt-2">
-                        <input class="form-check-input" type="checkbox" value="1" id="new-table-reverse-sign" name="new_table_reverse_sign">
+                        <input class="form-check-input" type="checkbox" value="1" id="new-table-reverse-sign" name="new_table_reverse_sign" {% if form_values.get('new_table_reverse_sign') %}checked{% endif %}>
                         <label class="form-check-label" for="new-table-reverse-sign">
-                            reverseSign
+                            Reverse sign of values 
                         </label>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="form-check mt-2">
-                        <input class="form-check-input" type="checkbox" value="1" id="new-table-cumulate" name="new_table_cumulate">
+                        <input class="form-check-input" type="checkbox" value="1" id="new-table-cumulate" name="new_table_cumulate" {% if form_values.get('new_table_cumulate') %}checked{% endif %}>
                         <label class="form-check-label" for="new-table-cumulate">
-                            cumulate
+                            Cumulate values 
                         </label>
                     </div>
                 </div>
@@ -97,5 +209,58 @@
             </div>
         </form>
     </div>
+    {% endif %}
 </div>
+
+<script>
+    (() => {
+        const tableNameInput = document.getElementById("new-table-name-input");
+        const tableNameWarning = document.getElementById("table-name-warning");
+        const reservedTableNames = new Set(
+            {{ reserved_table_names | tojson }}.map((name) => String(name).toLowerCase())
+        );
+
+        if (tableNameInput && tableNameWarning) {
+            const updateTableNameWarning = () => {
+                const value = tableNameInput.value.trim().toLowerCase();
+                const isReserved = value && reservedTableNames.has(value);
+                tableNameWarning.classList.toggle("d-none", !isReserved);
+                tableNameInput.classList.toggle("is-invalid", isReserved);
+            };
+
+            tableNameInput.addEventListener("input", updateTableNameWarning);
+            updateTableNameWarning();
+        }
+
+        const filterColumnSelect = document.getElementById("filter-column-select");
+        if (!filterColumnSelect) {
+            return;
+        }
+
+        const emptyMessage = document.getElementById("filter-values-empty");
+        const groups = Array.from(document.querySelectorAll(".filter-values-group"));
+
+        function updateFilterValues() {
+            const selectedColumn = filterColumnSelect.value;
+            let hasVisibleGroup = false;
+
+            groups.forEach((group) => {
+                const isVisible = group.dataset.filterColumn === selectedColumn;
+                group.classList.toggle("d-none", !isVisible);
+                group.querySelectorAll("input").forEach((input) => {
+                    input.disabled = !isVisible;
+                    if (!isVisible) {
+                        input.checked = false;
+                    }
+                });
+                hasVisibleGroup = hasVisibleGroup || isVisible;
+            });
+
+            emptyMessage.classList.toggle("d-none", hasVisibleGroup);
+        }
+
+        filterColumnSelect.addEventListener("change", updateFilterValues);
+        updateFilterValues();
+    })();
+</script>
 {% endblock %}

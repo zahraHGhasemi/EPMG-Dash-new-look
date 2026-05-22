@@ -4,8 +4,60 @@ from auth.models import db, Study
 from utils.dashboard_settings import get_dashboard_settings
 
 
+def _year_marks(start_year, end_year):
+    """Build 5-year slider marks, always including the range endpoints."""
+    marks = {str(year): str(year) for year in range(start_year, end_year + 1, 5)}
+    marks[str(start_year)] = str(start_year)
+    marks[str(end_year)] = str(end_year)
+    return marks
+
+
 def register_tab_content_callbacks(app):
     """Register callbacks for tab content visibility and URL synchronization."""
+    @app.callback(
+        Output("year-slider", "min"),
+        Output("year-slider", "max"),
+        Output("year-slider", "value"),
+        Output("year-slider", "marks"),
+        Output("year-sankey-slider", "min"),
+        Output("year-sankey-slider", "max"),
+        Output("year-sankey-slider", "value"),
+        Output("year-sankey-slider", "marks"),
+        Output("start-year-dropdown", "options"),
+        Output("start-year-dropdown", "value"),
+        Output("end-year-dropdown", "options"),
+        Output("end-year-dropdown", "value"),
+        Input("url", "pathname"),
+    )
+    def update_year_controls(_):
+        """Refresh year controls from dashboard settings when the Dash page loads."""
+        settings = get_dashboard_settings()
+        start_year = settings["start_year"]
+        end_year = settings["end_year"]
+        default_start_year = settings["default_start_year"]
+        default_end_year = settings["default_end_year"]
+        marks = _year_marks(start_year, end_year)
+        year_range = [default_start_year, default_end_year]
+        options = [
+            {"label": str(year), "value": year}
+            for year in range(start_year, end_year + 1)
+        ]
+
+        return (
+            start_year,
+            end_year,
+            year_range,
+            marks,
+            start_year,
+            end_year,
+            year_range,
+            marks,
+            options,
+            default_start_year,
+            options,
+            default_end_year,
+        )
+
     @app.callback(
         Output("active-study-title", "children"),
         Input("url", "search"),

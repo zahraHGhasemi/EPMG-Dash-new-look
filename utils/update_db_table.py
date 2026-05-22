@@ -21,6 +21,13 @@ SUPPORTED_UPLOAD_FORMAT = "table-series-year"
 TABLE_UPLOAD_FORMAT = "table-raw-by-table"
 YEAR_COLUMN_RE = re.compile(r"^\d{4}$")
 TABLE_INFO_PATH = Path(__file__).resolve().parents[1] / "config" / "table_info.json"
+TABLE_RULE_DIMENSION_COLUMNS = (
+    "Commodity",
+    "Commodityset",
+    "Process",
+    "Processset",
+    "Userconstraint",
+)
 
 def get_or_create_scenario(
     scenario_name: str,
@@ -377,6 +384,21 @@ def get_table_upload_options() -> list[str]:
     return sorted(load_table_upload_rules().keys())
 
 
+def delete_table_upload_rule(table_name: str) -> str:
+    """Delete a table upload rule from table_info.json and return the deleted table name."""
+    normalized_table_name = (table_name or "").strip()
+    if not normalized_table_name:
+        raise ValueError("Please choose a table rule to delete.")
+
+    rules = load_table_upload_rules()
+    if normalized_table_name not in rules:
+        raise ValueError(f"tableName '{normalized_table_name}' was not found in table_info.")
+
+    del rules[normalized_table_name]
+    save_table_upload_rules(rules)
+    return normalized_table_name
+
+
 def get_source_table_options() -> list[str]:
     """Fetch the list of unique source table names across all table upload rules, which can be used to inform users about required tables for their selected upload."""
     rules = load_table_upload_rules()
@@ -429,6 +451,12 @@ def add_table_upload_rule(
         raise ValueError("defaultUnit is required.")
     if not normalized_aggregation:
         raise ValueError("aggregation is required.")
+    if normalized_keep_dimensions not in TABLE_RULE_DIMENSION_COLUMNS:
+        raise ValueError("keepDimensions must be one of the supported dimension columns.")
+    if normalized_aggregation not in {"sum", "mean"}:
+        raise ValueError("aggregation must be either sum or mean.")
+    if normalized_filter_column and normalized_filter_column not in TABLE_RULE_DIMENSION_COLUMNS:
+        raise ValueError("filter column must be one of the supported dimension columns.")
 
     rules = load_table_upload_rules()
     if normalized_table_name in rules:
@@ -466,6 +494,63 @@ def add_table_upload_rule(
     }
     save_table_upload_rules(rules)
     return normalized_table_name
+
+
+def analyze_table_upload_rule_example(file) -> dict:
+    """Read an example source CSV and return controlled choices for creating a table upload rule."""
+    filename = (getattr(file, "filename", "") or "").strip()
+    if not filename:
+        raise ValueError("Please upload an example CSV file.")
+    if not filename.lower().endswith(".csv"):
+        raise ValueError(f"'{filename}' is not a CSV file. Please upload a file ending in .csv.")
+
+    try:
+        df = pd.read_csv(file.stream)
+    except pd.errors.EmptyDataError as exc:
+        raise ValueError(f"'{filename}' is empty. Please upload a CSV file with data rows.") from exc
+    except pd.errors.ParserError as exc:
+        raise ValueError(
+            f"'{filename}' could not be read as a CSV file. Please check the file format."
+        ) from exc
+
+    if df.empty:
+        raise ValueError(f"'{filename}' is empty. Please upload a CSV file with data rows.")
+
+    cleaned_columns = [str(column).strip() for column in df.columns]
+    duplicate_columns = sorted({column for column in cleaned_columns if cleaned_columns.count(column) > 1})
+    if duplicate_columns:
+        raise ValueError(f"'{filename}' has duplicate column names: {', '.join(duplicate_columns)}.")
+
+    df = df.copy()
+    df.columns = cleaned_columns
+    candidate_columns = [
+        column for column in TABLE_RULE_DIMENSION_COLUMNS
+        if column in df.columns
+    ]
+    if not candidate_columns:
+        raise ValueError(
+            "The example file does not include any supported dimension columns: "
+            f"{', '.join(TABLE_RULE_DIMENSION_COLUMNS)}."
+        )
+
+    filter_values_by_column = {}
+    for column in candidate_columns:
+        values = (
+            df[column]
+            .dropna()
+            .astype(str)
+            .str.strip()
+        )
+        unique_values = sorted({value for value in values if value})
+        filter_values_by_column[column] = unique_values
+
+    source_name = Path(filename).stem.strip()
+    return {
+        "filename": filename,
+        "source_name": source_name,
+        "candidate_columns": candidate_columns,
+        "filter_values_by_column": filter_values_by_column,
+    }
 
 
 def validate_upload_format(upload_format: str) -> str:
@@ -810,17 +895,17 @@ def process_uploaded_csv(
         if not allow_existing_scenario:
             ensure_scenario_not_exists(scenario_name, study_id, session)
 
-        else:
-            scenario_id_deleted = session.execute(select(Scenario.id).where(Scenario.name == scenario_name, Scenario.study_id == study_id)).scalar_one_or_none()
+        elif overwrite_table_names is None:
+            # scenario_id_deleted = session.execute(select(Scenario.id).where(Scenario.name == scenario_name, Scenario.study_id == study_id)).scalar_one_or_none()
             # print(scenario_id_deleted, "scenario_id before deletion")
             delete_existing_values_for_scenario_tables(
                 session,
                 scenario_name,
                 study_id,
-                table_names=(overwrite_table_names if overwrite_table_names is not None else []),
-                all_tables=(allow_existing_scenario and overwrite_table_names == None)
+                table_names=[],
+                all_tables=True
             )
-            scenario_id_deleted = session.execute(select(Scenario.id).where(Scenario.name == scenario_name, Scenario.study_id == study_id)).scalar_one_or_none()
+            # scenario_id_deleted = session.execute(select(Scenario.id).where(Scenario.name == scenario_name, Scenario.study_id == study_id)).scalar_one_or_none()
             # print(scenario_id_deleted, "scenario_id after deletion")
         scenario_id = get_or_create_scenario(scenario_name, session, study_id=study_id)
 
@@ -828,13 +913,13 @@ def process_uploaded_csv(
         series_map = upsert_series(df, table_map, session)
         upsert_years(df, session)
 
-        if allow_existing_scenario and overwrite_table_names:
+        if allow_existing_scenario and (overwrite_table_names is not None):
             delete_existing_values_for_scenario_tables(
                 session,
                 scenario_name,
                 study_id,
                 table_names=overwrite_table_names,
-                all_tables=(allow_existing_scenario and (len(overwrite_table_names) == 0 or overwrite_table_names ==None))
+                all_tables= (len(overwrite_table_names) == 0)
             )
 
         values_df = melt_and_map_values(

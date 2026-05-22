@@ -1161,18 +1161,6 @@
       "keepDimensions": "Commodity"
     }
   },
-  "GHG_EMISSIONS": {
-    "GHG emissions": {
-      "aggregation": "sum",
-      "defaultUnit": "ktC",
-      "keepDimensions": "Commodity",
-      "filter": {
-        "Commodity": [
-          "EMI_HWP_C"
-        ]
-      }
-    }
-  },
   "GHG_no_HWP": {
     "GHG emissions": {
       "aggregation": "sum",
@@ -1212,6 +1200,18 @@
           "EMI-GRA-DRAIN-N2O",
           "EMI-FOR-DRAIN-N2O",
           "EMI-FOR-NET"
+        ]
+      }
+    }
+  },
+  "GHG_emision_hwp": {
+    "GHG emissions": {
+      "aggregation": "sum",
+      "defaultUnit": "ktC",
+      "keepDimensions": "Commodity",
+      "filter": {
+        "Commodity": [
+          "EMI_HWP_C"
         ]
       }
     }
