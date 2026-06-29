@@ -10,7 +10,7 @@
 <div class="container mt-4">
     <h2 class="mb-3">Manage Table Upload Rules</h2>
     <p class="text-muted mb-4">
-        Upload an example source CSV first, then create the rule from the columns and values found in that file.
+        Upload one or more example source CSVs first, then create the rule from the columns and values found in those files.
     </p>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -27,8 +27,8 @@
             <input type="hidden" name="action" value="analyze_example">
             <div class="row g-3 align-items-end">
                 <div class="col-md-6">
-                    <label class="form-label">Example source CSV</label>
-                    <input type="file" class="form-control" name="example_file" accept=".csv" required>
+                    <label class="form-label">Example source CSV files</label>
+                    <input type="file" class="form-control" name="example_files" accept=".csv" multiple required>
                 </div>
                 <div class="col-md-3">
                     <button type="submit" class="btn btn-primary w-100">Load Columns</button>
@@ -72,18 +72,17 @@
         </form>
     </div>
 
-    {% if example_context %}
+    {% if example_contexts %}
     <div class="border rounded p-4">
         <h5 class="mb-3">4. Add Rule</h5>
         <p class="text-muted mb-3">
-            Source name will be saved as <code>{{ example_context.source_name }}</code>, based on
-            <code>{{ example_context.filename }}</code>.
+            This creates one tableName with {{ example_contexts|length }} source rule(s).
         </p>
 
         <form method="POST">
             <input type="hidden" name="action" value="add_rule">
-            <input type="hidden" name="new_table_source_name" value="{{ example_context.source_name }}">
-            <input type="hidden" name="example_context_json" value='{{ example_context | tojson }}'>
+            <input type="hidden" name="source_rule_count" value="{{ example_contexts|length }}">
+            <input type="hidden" name="example_contexts_json" value='{{ example_contexts | tojson }}'>
 
             <div class="row g-3">
                 <div class="col-md-6">
@@ -107,99 +106,111 @@
                         This tableName already exists in table_info or the database. Enter a new name.
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label">Source name *</label>
-                    <input type="text" class="form-control" value="{{ example_context.source_name }}" disabled>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label"> Main column (keepDimensions) *</label>
-                    <select class="form-select" name="new_table_keep_dimensions" required>
-                        {% for column in example_context.candidate_columns %}
-                            <option value="{{ column }}" {% if form_values.get('new_table_keep_dimensions') == column %}selected{% endif %}>{{ column }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Default unit *</label>
-                    <input
-                        type="text"
-                        class="form-control"
-                        name="new_table_default_unit"
-                        value="{{ form_values.get('new_table_default_unit', '') }}"
-                        placeholder="e.g. PJ"
-                        required
-                    >
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Aggregation *</label>
-                    <select class="form-select" name="new_table_aggregation" required>
-                        <option value="sum" {% if form_values.get('new_table_aggregation', 'sum') == 'sum' %}selected{% endif %}>sum</option>
-                        <option value="mean" {% if form_values.get('new_table_aggregation') == 'mean' %}selected{% endif %}>mean</option>
-                    </select>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label">Filter column</label>
-                    <select class="form-select" id="filter-column-select" name="new_table_filter_column">
-                        <option value="">No filter</option>
-                        {% for column in example_context.candidate_columns %}
-                            <option value="{{ column }}" {% if form_values.get('new_table_filter_column') == column %}selected{% endif %}>{{ column }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-8">
-                    <label class="form-label">Filter values</label>
-                    <div id="filter-values-empty" class="form-text">
-                        Choose a filter column to select values.
-                    </div>
-                    {% for column, values in example_context.filter_values_by_column.items() %}
-                        <div class="filter-values-group d-none border rounded p-2" data-filter-column="{{ column }}">
-                            {% if values %}
-                                <div class="row g-2">
-                                    {% for value in values %}
-                                        <div class="col-md-4">
-                                            <div class="form-check">
-                                                <input
-                                                    class="form-check-input filter-value-checkbox"
-                                                    type="checkbox"
-                                                    name="new_table_filter_values"
-                                                    value="{{ value }}"
-                                                    id="filter-{{ loop.index }}-{{ column }}"
-                                                    {% if value in form_values.getlist('new_table_filter_values') %}checked{% endif %}
-                                                    disabled
-                                                >
-                                                <label class="form-check-label" for="filter-{{ loop.index }}-{{ column }}">
-                                                    {{ value }}
-                                                </label>
-                                            </div>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <div class="form-text">No non-empty values found for this column.</div>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
-
-                <div class="col-md-6">
-                    <div class="form-check mt-2">
-                        <input class="form-check-input" type="checkbox" value="1" id="new-table-reverse-sign" name="new_table_reverse_sign" {% if form_values.get('new_table_reverse_sign') %}checked{% endif %}>
-                        <label class="form-check-label" for="new-table-reverse-sign">
-                            Reverse sign of values 
-                        </label>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="form-check mt-2">
-                        <input class="form-check-input" type="checkbox" value="1" id="new-table-cumulate" name="new_table_cumulate" {% if form_values.get('new_table_cumulate') %}checked{% endif %}>
-                        <label class="form-check-label" for="new-table-cumulate">
-                            Cumulate values 
-                        </label>
-                    </div>
-                </div>
             </div>
+
+            {% for source_context in example_contexts %}
+                {% set source_index = loop.index0 %}
+                <div class="border rounded p-3 mt-4">
+                    <h6 class="mb-3">
+                        Source {{ loop.index }}:
+                        <code>{{ source_context.source_name }}</code>
+                    </h6>
+                    <p class="text-muted mb-3">
+                        Based on <code>{{ source_context.filename }}</code>.
+                    </p>
+                    <input type="hidden" name="source_{{ source_index }}_name" value="{{ source_context.source_name }}">
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Main column (keepDimensions) *</label>
+                            <select class="form-select" name="source_{{ source_index }}_keep_dimensions" required>
+                                {% for column in source_context.candidate_columns %}
+                                    <option value="{{ column }}" {% if form_values.get('source_' ~ source_index ~ '_keep_dimensions') == column %}selected{% endif %}>{{ column }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Default unit *</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="source_{{ source_index }}_default_unit"
+                                value="{{ form_values.get('source_' ~ source_index ~ '_default_unit', '') }}"
+                                placeholder="e.g. PJ"
+                                required
+                            >
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Aggregation *</label>
+                            <select class="form-select" name="source_{{ source_index }}_aggregation" required>
+                                <option value="sum" {% if form_values.get('source_' ~ source_index ~ '_aggregation', 'sum') == 'sum' %}selected{% endif %}>sum</option>
+                                <option value="mean" {% if form_values.get('source_' ~ source_index ~ '_aggregation') == 'mean' %}selected{% endif %}>mean</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Filter column</label>
+                            <select class="form-select filter-column-select" name="source_{{ source_index }}_filter_column" data-source-index="{{ source_index }}">
+                                <option value="">No filter</option>
+                                {% for column in source_context.candidate_columns %}
+                                    <option value="{{ column }}" {% if form_values.get('source_' ~ source_index ~ '_filter_column') == column %}selected{% endif %}>{{ column }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Filter values</label>
+                            <div class="form-text filter-values-empty" data-source-index="{{ source_index }}">
+                                Choose a filter column to select values.
+                            </div>
+                            {% for column, values in source_context.filter_values_by_column.items() %}
+                                <div class="filter-values-group d-none border rounded p-2" data-source-index="{{ source_index }}" data-filter-column="{{ column }}">
+                                    {% if values %}
+                                        <div class="row g-2">
+                                            {% for value in values %}
+                                                <div class="col-md-4">
+                                                    <div class="form-check">
+                                                        <input
+                                                            class="form-check-input filter-value-checkbox"
+                                                            type="checkbox"
+                                                            name="source_{{ source_index }}_filter_values"
+                                                            value="{{ value }}"
+                                                            id="filter-{{ source_index }}-{{ loop.index }}-{{ column }}"
+                                                            {% if value in form_values.getlist('source_' ~ source_index ~ '_filter_values') %}checked{% endif %}
+                                                            disabled
+                                                        >
+                                                        <label class="form-check-label" for="filter-{{ source_index }}-{{ loop.index }}-{{ column }}">
+                                                            {{ value }}
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <div class="form-text">No non-empty values found for this column.</div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" value="1" id="source-{{ source_index }}-reverse-sign" name="source_{{ source_index }}_reverse_sign" {% if form_values.get('source_' ~ source_index ~ '_reverse_sign') %}checked{% endif %}>
+                                <label class="form-check-label" for="source-{{ source_index }}-reverse-sign">
+                                    Reverse sign of values
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" value="1" id="source-{{ source_index }}-cumulate" name="source_{{ source_index }}_cumulate" {% if form_values.get('source_' ~ source_index ~ '_cumulate') %}checked{% endif %}>
+                                <label class="form-check-label" for="source-{{ source_index }}-cumulate">
+                                    Cumulate values
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
 
             <div class="mt-4 d-flex gap-2">
                 <button type="submit" class="btn btn-primary">Add Table</button>
@@ -232,20 +243,18 @@
             updateTableNameWarning();
         }
 
-        const filterColumnSelect = document.getElementById("filter-column-select");
-        if (!filterColumnSelect) {
-            return;
-        }
-
-        const emptyMessage = document.getElementById("filter-values-empty");
+        const filterColumnSelects = Array.from(document.querySelectorAll(".filter-column-select"));
         const groups = Array.from(document.querySelectorAll(".filter-values-group"));
 
-        function updateFilterValues() {
+        function updateFilterValues(filterColumnSelect) {
             const selectedColumn = filterColumnSelect.value;
+            const sourceIndex = filterColumnSelect.dataset.sourceIndex;
+            const emptyMessage = document.querySelector(`.filter-values-empty[data-source-index="${sourceIndex}"]`);
             let hasVisibleGroup = false;
 
             groups.forEach((group) => {
-                const isVisible = group.dataset.filterColumn === selectedColumn;
+                const isVisible = group.dataset.sourceIndex === sourceIndex
+                    && group.dataset.filterColumn === selectedColumn;
                 group.classList.toggle("d-none", !isVisible);
                 group.querySelectorAll("input").forEach((input) => {
                     input.disabled = !isVisible;
@@ -256,11 +265,15 @@
                 hasVisibleGroup = hasVisibleGroup || isVisible;
             });
 
-            emptyMessage.classList.toggle("d-none", hasVisibleGroup);
+            if (emptyMessage) {
+                emptyMessage.classList.toggle("d-none", hasVisibleGroup);
+            }
         }
 
-        filterColumnSelect.addEventListener("change", updateFilterValues);
-        updateFilterValues();
+        filterColumnSelects.forEach((filterColumnSelect) => {
+            filterColumnSelect.addEventListener("change", () => updateFilterValues(filterColumnSelect));
+            updateFilterValues(filterColumnSelect);
+        });
     })();
 </script>
 {% endblock %}

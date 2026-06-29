@@ -26,7 +26,7 @@ from utils.update_db_table import (
     TABLE_INFO_PATH,
     TABLE_UPLOAD_FORMAT,
     add_table_upload_rule,
-    analyze_table_upload_rule_example,
+    analyze_table_upload_rule_examples,
     delete_table_upload_rule,
     get_source_table_options,
     get_table_upload_source_map,
@@ -116,7 +116,7 @@ def admin_panel():
 @admin_required
 def manage_table_upload_rules():
     """Display and create table upload rules used by the table-based CSV uploader."""
-    example_context = None
+    example_contexts = []
     form_values = {}
     reserved_table_names = _get_reserved_table_upload_names()
     table_info_table_names = get_table_upload_options()
@@ -125,10 +125,12 @@ def manage_table_upload_rules():
         action = (request.form.get("action") or "add_rule").strip()
         try:
             if action == "analyze_example":
-                example_file = request.files.get("example_file")
-                example_context = analyze_table_upload_rule_example(example_file)
+                example_files = request.files.getlist("example_files")
+                if not example_files:
+                    example_files = request.files.getlist("example_file")
+                example_contexts = analyze_table_upload_rule_examples(example_files)
                 flash(
-                    f"Example file '{example_context['filename']}' loaded. Choose the rule settings below.",
+                    f"{len(example_contexts)} example file(s) loaded. Choose the rule settings below.",
                     "success",
                 )
             elif action == "delete_rule":
@@ -139,18 +141,28 @@ def manage_table_upload_rules():
                 )
                 return redirect(url_for("admin.manage_table_upload_rules"))
             else:
-                filter_values_text = "\n".join(request.form.getlist("new_table_filter_values"))
+                source_rule_count = int(request.form.get("source_rule_count") or 0)
+                source_rules = []
+                for index in range(source_rule_count):
+                    filter_values_text = "\n".join(
+                        request.form.getlist(f"source_{index}_filter_values")
+                    )
+                    source_rules.append(
+                        {
+                            "source_name": request.form.get(f"source_{index}_name"),
+                            "keep_dimensions": request.form.get(f"source_{index}_keep_dimensions"),
+                            "default_unit": request.form.get(f"source_{index}_default_unit"),
+                            "aggregation": request.form.get(f"source_{index}_aggregation"),
+                            "filter_column": request.form.get(f"source_{index}_filter_column"),
+                            "filter_values_text": filter_values_text,
+                            "reverse_sign": bool(request.form.get(f"source_{index}_reverse_sign")),
+                            "cumulate": bool(request.form.get(f"source_{index}_cumulate")),
+                        }
+                    )
                 _ensure_new_table_name_is_available(request.form.get("new_table_name"))
                 new_table_name = add_table_upload_rule(
                     table_name=request.form.get("new_table_name"),
-                    source_name=request.form.get("new_table_source_name"),
-                    keep_dimensions=request.form.get("new_table_keep_dimensions"),
-                    default_unit=request.form.get("new_table_default_unit"),
-                    aggregation=request.form.get("new_table_aggregation"),
-                    filter_column=request.form.get("new_table_filter_column"),
-                    filter_values_text=filter_values_text,
-                    reverse_sign=bool(request.form.get("new_table_reverse_sign")),
-                    cumulate=bool(request.form.get("new_table_cumulate")),
+                    source_rules=source_rules,
                 )
                 flash(
                     f"table_info updated successfully. New table '{new_table_name}' is now available.",
@@ -160,15 +172,15 @@ def manage_table_upload_rules():
         except Exception as e:
             if action == "add_rule":
                 try:
-                    example_context = json.loads(request.form.get("example_context_json") or "null")
+                    example_contexts = json.loads(request.form.get("example_contexts_json") or "[]")
                 except json.JSONDecodeError:
-                    example_context = None
+                    example_contexts = []
             flash(f"Could not add new table definition: {e}", "danger")
 
     return render_template(
         "admin/table_upload_rules.html",
         available_source_table_options=get_source_table_options(),
-        example_context=example_context,
+        example_contexts=example_contexts,
         form_values=form_values,
         reserved_table_names=reserved_table_names,
         table_info_table_names=table_info_table_names,

@@ -422,41 +422,22 @@ def get_table_upload_source_map() -> dict[str, list[str]]:
 def add_table_upload_rule(
     *,
     table_name: str,
-    source_name: str,
-    keep_dimensions: str,
-    default_unit: str,
-    aggregation: str,
+    source_name: str | None = None,
+    keep_dimensions: str | None = None,
+    default_unit: str | None = None,
+    aggregation: str | None = None,
     filter_column: str | None = None,
     filter_values_text: str | None = None,
     reverse_sign: bool = False,
     cumulate: bool = False,
+    source_rules: list[dict] | None = None,
 ) -> str:
     """Add a new table upload rule to the table upload rules JSON file, validating inputs and ensuring no conflicts with existing rules.
      Returns the normalized table name of the newly added rule."""
     normalized_table_name = (table_name or "").strip()
-    normalized_source_name = (source_name or "").strip()
-    normalized_keep_dimensions = (keep_dimensions or "").strip()
-    normalized_default_unit = (default_unit or "").strip()
-    normalized_aggregation = (aggregation or "").strip()
-    normalized_filter_column = (filter_column or "").strip()
-    normalized_filter_values_text = (filter_values_text or "").strip()
 
     if not normalized_table_name:
         raise ValueError("New tableName is required.")
-    if not normalized_source_name:
-        raise ValueError("source name is required.")
-    if not normalized_keep_dimensions:
-        raise ValueError("keepDimensions is required.")
-    if not normalized_default_unit:
-        raise ValueError("defaultUnit is required.")
-    if not normalized_aggregation:
-        raise ValueError("aggregation is required.")
-    if normalized_keep_dimensions not in TABLE_RULE_DIMENSION_COLUMNS:
-        raise ValueError("keepDimensions must be one of the supported dimension columns.")
-    if normalized_aggregation not in {"sum", "mean"}:
-        raise ValueError("aggregation must be either sum or mean.")
-    if normalized_filter_column and normalized_filter_column not in TABLE_RULE_DIMENSION_COLUMNS:
-        raise ValueError("filter column must be one of the supported dimension columns.")
 
     rules = load_table_upload_rules()
     if normalized_table_name in rules:
@@ -465,8 +446,69 @@ def add_table_upload_rule(
             "Please choose a new name."
         )
 
+    if source_rules is None:
+        source_rules = [
+            {
+                "source_name": source_name,
+                "keep_dimensions": keep_dimensions,
+                "default_unit": default_unit,
+                "aggregation": aggregation,
+                "filter_column": filter_column,
+                "filter_values_text": filter_values_text,
+                "reverse_sign": reverse_sign,
+                "cumulate": cumulate,
+            }
+        ]
+
+    if not source_rules:
+        raise ValueError("At least one source rule is required.")
+
+    table_config = {}
+    seen_source_names = set()
+    for source_rule in source_rules:
+        normalized_source_name, table_rule = _build_table_upload_source_rule(source_rule)
+        source_name_key = normalized_source_name.casefold()
+        if source_name_key in seen_source_names:
+            raise ValueError(f"Source name '{normalized_source_name}' is listed more than once.")
+        seen_source_names.add(source_name_key)
+        table_config[normalized_source_name] = table_rule
+
+    rules[normalized_table_name] = table_config
+    save_table_upload_rules(rules)
+    return normalized_table_name
+
+
+def _build_table_upload_source_rule(source_rule: dict) -> tuple[str, dict]:
+    """Validate one source CSV rule and return its source name plus JSON config."""
+    normalized_source_name = (source_rule.get("source_name") or "").strip()
+    normalized_keep_dimensions = (source_rule.get("keep_dimensions") or "").strip()
+    normalized_default_unit = (source_rule.get("default_unit") or "").strip()
+    normalized_aggregation = (source_rule.get("aggregation") or "").strip()
+    normalized_filter_column = (source_rule.get("filter_column") or "").strip()
+    normalized_filter_values_text = (source_rule.get("filter_values_text") or "").strip()
+
+    if not normalized_source_name:
+        raise ValueError("source name is required.")
+    if not normalized_keep_dimensions:
+        raise ValueError(f"keepDimensions is required for source '{normalized_source_name}'.")
+    if not normalized_default_unit:
+        raise ValueError(f"defaultUnit is required for source '{normalized_source_name}'.")
+    if not normalized_aggregation:
+        raise ValueError(f"aggregation is required for source '{normalized_source_name}'.")
+    if normalized_keep_dimensions not in TABLE_RULE_DIMENSION_COLUMNS:
+        raise ValueError(
+            f"keepDimensions for source '{normalized_source_name}' must be one of the supported dimension columns."
+        )
+    if normalized_aggregation not in {"sum", "mean"}:
+        raise ValueError(f"aggregation for source '{normalized_source_name}' must be either sum or mean.")
+    if normalized_filter_column and normalized_filter_column not in TABLE_RULE_DIMENSION_COLUMNS:
+        raise ValueError(
+            f"filter column for source '{normalized_source_name}' must be one of the supported dimension columns."
+        )
     if bool(normalized_filter_column) != bool(normalized_filter_values_text):
-        raise ValueError("Both filter column and filter values are required when adding a filter.")
+        raise ValueError(
+            f"Both filter column and filter values are required when adding a filter for source '{normalized_source_name}'."
+        )
 
     table_rule = {
         "aggregation": normalized_aggregation,
@@ -481,19 +523,15 @@ def add_table_upload_rule(
             if value.strip()
         ]
         if not filter_values:
-            raise ValueError("Filter values cannot be empty.")
+            raise ValueError(f"Filter values for source '{normalized_source_name}' cannot be empty.")
         table_rule["filter"] = {normalized_filter_column: filter_values}
 
-    if reverse_sign:
+    if source_rule.get("reverse_sign"):
         table_rule["reverseSign"] = True
-    if cumulate:
+    if source_rule.get("cumulate"):
         table_rule["cumulate"] = True
 
-    rules[normalized_table_name] = {
-        normalized_source_name: table_rule
-    }
-    save_table_upload_rules(rules)
-    return normalized_table_name
+    return normalized_source_name, table_rule
 
 
 def analyze_table_upload_rule_example(file) -> dict:
@@ -551,6 +589,32 @@ def analyze_table_upload_rule_example(file) -> dict:
         "candidate_columns": candidate_columns,
         "filter_values_by_column": filter_values_by_column,
     }
+
+
+def analyze_table_upload_rule_examples(files) -> list[dict]:
+    """Read one or more example source CSVs and return controlled choices for each file."""
+    valid_files = [
+        file
+        for file in files
+        if (getattr(file, "filename", "") or "").strip()
+    ]
+    if not valid_files:
+        raise ValueError("Please upload at least one example CSV file.")
+
+    contexts = [analyze_table_upload_rule_example(file) for file in valid_files]
+    source_names = [context["source_name"] for context in contexts]
+    duplicate_source_names = sorted({
+        source_name
+        for source_name in source_names
+        if source_names.count(source_name) > 1
+    })
+    if duplicate_source_names:
+        raise ValueError(
+            "Example files produce duplicate source names: "
+            f"{', '.join(duplicate_source_names)}. Rename one of the files and try again."
+        )
+
+    return contexts
 
 
 def validate_upload_format(upload_format: str) -> str:

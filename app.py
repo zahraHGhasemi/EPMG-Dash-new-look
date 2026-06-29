@@ -11,6 +11,8 @@ from data_provider.sql_data import SQLDataProvider
 from utils.dashboard_settings import get_dashboard_settings
 from utils.schema_migrations import ensure_scenario_study_fk_schema, ensure_series_color_schema
 import os
+import tempfile
+from pathlib import Path
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 
@@ -34,8 +36,16 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
 
 
+session_file_dir = Path(
+    os.getenv(
+        "SESSION_FILE_DIR",
+        Path(tempfile.gettempdir()) / "epmg_dashboard_flask_session",
+    )
+)
+session_file_dir.mkdir(parents=True, exist_ok=True)
+
 app.config["SESSION_TYPE"] = "filesystem"
-app.config["SESSION_FILE_DIR"] = "./flask_session"
+app.config["SESSION_FILE_DIR"] = str(session_file_dir)
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_USE_SIGNER"] = True
 
