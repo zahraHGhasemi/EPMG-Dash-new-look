@@ -201,6 +201,7 @@ def download_table_upload_rules():
         as_attachment=True,
         download_name="table_info.json",
         mimetype="application/json",
+        max_age=0,
     )
 
     
@@ -384,7 +385,7 @@ def default_values():
 
             updated = save_dashboard_settings(payload)
             flash("Dashboard defaults saved.", "success")
-            return _render_default_values_page(updated)
+            return redirect(url_for("admin.default_values"))
         except Exception as e:
             flash(f"Could not save defaults: {e}", "danger")
 

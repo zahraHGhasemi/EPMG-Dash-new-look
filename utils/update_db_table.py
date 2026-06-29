@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from pathlib import Path
 
@@ -374,9 +375,16 @@ def load_table_upload_rules() -> dict:
 
 def save_table_upload_rules(rules: dict) -> None:
     """Save the table upload rules to the JSON file, overwriting any existing content."""
+    TABLE_INFO_PATH.parent.mkdir(parents=True, exist_ok=True)
     with TABLE_INFO_PATH.open("w", encoding="utf-8") as f:
         json.dump(rules, f, indent=2)
         f.write("\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+    saved_rules = load_table_upload_rules()
+    if saved_rules != rules:
+        raise ValueError("table_info.json was saved but could not be verified from disk.")
 
 
 def get_table_upload_options() -> list[str]:

@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 from config.constants import (
@@ -177,4 +178,11 @@ def save_dashboard_settings(settings):
     SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
     with SETTINGS_PATH.open("w", encoding="utf-8") as f:
         json.dump(cleaned, f, indent=2)
+        f.write("\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+    saved = get_dashboard_settings()
+    if saved != cleaned:
+        raise ValueError("Dashboard settings were saved but could not be verified from disk.")
     return cleaned

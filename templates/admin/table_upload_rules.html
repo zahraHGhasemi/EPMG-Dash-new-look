@@ -110,7 +110,7 @@
 
             {% for source_context in example_contexts %}
                 {% set source_index = loop.index0 %}
-                <div class="border rounded p-3 mt-4">
+                <div class="source-block border rounded p-3 mt-4">
                     <h6 class="mb-3">
                         Source {{ loop.index }}:
                         <code>{{ source_context.source_name }}</code>
@@ -244,25 +244,36 @@
         }
 
         const filterColumnSelects = Array.from(document.querySelectorAll(".filter-column-select"));
-        const groups = Array.from(document.querySelectorAll(".filter-values-group"));
+        // const groups = Array.from(document.querySelectorAll(".filter-values-group"));
 
         function updateFilterValues(filterColumnSelect) {
             const selectedColumn = filterColumnSelect.value;
-            const sourceIndex = filterColumnSelect.dataset.sourceIndex;
-            const emptyMessage = document.querySelector(`.filter-values-empty[data-source-index="${sourceIndex}"]`);
+
+            // only search inside THIS file block
+            const sourceBlock = filterColumnSelect.closest(".source-block");
+
+            const groups = sourceBlock.querySelectorAll(".filter-values-group");
+            const emptyMessage = sourceBlock.querySelector(".filter-values-empty");
+
             let hasVisibleGroup = false;
 
-            groups.forEach((group) => {
-                const isVisible = group.dataset.sourceIndex === sourceIndex
-                    && group.dataset.filterColumn === selectedColumn;
+            groups.forEach(group => {
+                const isVisible =
+                    group.dataset.filterColumn === selectedColumn;
+
                 group.classList.toggle("d-none", !isVisible);
-                group.querySelectorAll("input").forEach((input) => {
+
+                group.querySelectorAll("input").forEach(input => {
                     input.disabled = !isVisible;
+
                     if (!isVisible) {
                         input.checked = false;
                     }
                 });
-                hasVisibleGroup = hasVisibleGroup || isVisible;
+
+                if (isVisible) {
+                    hasVisibleGroup = true;
+                }
             });
 
             if (emptyMessage) {
