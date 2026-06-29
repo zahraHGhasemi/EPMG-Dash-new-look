@@ -168,6 +168,8 @@ def get_dashboard_settings():
 
 
 def save_dashboard_settings(settings):
+    print("Before:", get_dashboard_settings())
+    print("Incoming:", settings)
     """Save the provided dashboard settings, merging them with existing settings and ensuring they are properly sanitized."""
     current_settings = get_dashboard_settings()
     merged_settings = dict(current_settings)
@@ -185,4 +187,5 @@ def save_dashboard_settings(settings):
     saved = get_dashboard_settings()
     if saved != cleaned:
         raise ValueError("Dashboard settings were saved but could not be verified from disk.")
+    print("After:", get_dashboard_settings())
     return cleaned

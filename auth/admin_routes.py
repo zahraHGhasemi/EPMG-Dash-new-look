@@ -382,13 +382,11 @@ def default_values():
                 allowed_subsectors = set(sector_subsectors_map.get(selected_sector, []))
                 if selected_subsector and selected_subsector not in allowed_subsectors:
                     raise ValueError("Default subsector must belong to the selected default sector.")
-
             updated = save_dashboard_settings(payload)
             flash("Dashboard defaults saved.", "success")
             return redirect(url_for("admin.default_values"))
         except Exception as e:
             flash(f"Could not save defaults: {e}", "danger")
-
     return _render_default_values_page()
 
 

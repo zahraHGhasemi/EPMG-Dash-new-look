@@ -11,10 +11,10 @@ from data_provider.sql_data import SQLDataProvider
 from utils.dashboard_settings import get_dashboard_settings
 from utils.schema_migrations import ensure_scenario_study_fk_schema, ensure_series_color_schema
 import os
-import tempfile
-from pathlib import Path
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
+import tempfile
+from pathlib import Path
 
 
 
@@ -34,7 +34,6 @@ with app.app_context():
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
-
 
 session_file_dir = Path(
     os.getenv(
