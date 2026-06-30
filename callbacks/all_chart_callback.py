@@ -62,7 +62,6 @@ def register_all_chart_callbacks(app, provider=SQLDataProvider(session=session))
         except (TypeError, ValueError):
             return [], None
         options = [{"label": scenario.name, "value": str(scenario.id)} for scenario in scenarios]
-        print(current_value, "current_value")
         if current_value in [options[i]['value'] for i in range(len(options))]:
             value = current_value
         else:

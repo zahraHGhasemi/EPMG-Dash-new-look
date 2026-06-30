@@ -159,6 +159,23 @@ def _sanitize(settings):
 
 def get_dashboard_settings():
     """Fetch the current dashboard settings, applying defaults and sanitization as needed."""
+    # Prefer DB-backed settings when available
+    try:
+        from auth.models import AppConfig, db
+        from sqlalchemy import select
+        row = db.session.execute(
+            select(AppConfig.json_value).where(AppConfig.key == "dashboard_settings")
+        ).scalar_one_or_none()
+        if row:
+            try:
+                loaded = json.loads(row)
+                return _sanitize(loaded)
+            except json.JSONDecodeError:
+                pass
+    except Exception:
+        # DB not available — fall back to file
+        pass
+
     if not SETTINGS_PATH.exists():
         return dict(DEFAULT_SETTINGS)
 
@@ -168,8 +185,7 @@ def get_dashboard_settings():
 
 
 def save_dashboard_settings(settings):
-    print("Before:", get_dashboard_settings())
-    print("Incoming:", settings)
+   
     """Save the provided dashboard settings, merging them with existing settings and ensuring they are properly sanitized."""
     current_settings = get_dashboard_settings()
     merged_settings = dict(current_settings)
@@ -177,15 +193,37 @@ def save_dashboard_settings(settings):
     if "overview_metrics" not in (settings or {}):
         merged_settings["overview_metrics"] = current_settings.get("overview_metrics", [])
     cleaned = _sanitize(merged_settings)
-    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with SETTINGS_PATH.open("w", encoding="utf-8") as f:
-        json.dump(cleaned, f, indent=2)
-        f.write("\n")
-        f.flush()
-        os.fsync(f.fileno())
+    # Try to save to DB first
+    try:
+        from auth.models import AppConfig, db
+        from sqlalchemy import select
 
-    saved = get_dashboard_settings()
-    if saved != cleaned:
-        raise ValueError("Dashboard settings were saved but could not be verified from disk.")
-    print("After:", get_dashboard_settings())
-    return cleaned
+        json_text = json.dumps(cleaned, indent=2) + "\n"
+        existing = db.session.execute(
+            select(AppConfig).where(AppConfig.key == "dashboard_settings")
+        ).scalar_one_or_none()
+        if existing is None:
+            existing = AppConfig(key="dashboard_settings", json_value=json_text)
+            db.session.add(existing)
+        else:
+            existing.json_value = json_text
+        db.session.commit()
+
+        # verify
+        saved = json.loads(existing.json_value)
+        if saved != cleaned:
+            raise ValueError("Dashboard settings were saved but could not be verified in DB.")
+        return cleaned
+    except Exception:
+        # Fall back to file storage if DB not available
+        SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with SETTINGS_PATH.open("w", encoding="utf-8") as f:
+            json.dump(cleaned, f, indent=2)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+
+        saved = get_dashboard_settings()
+        if saved != cleaned:
+            raise ValueError("Dashboard settings were saved but could not be verified from disk.")
+        return cleaned

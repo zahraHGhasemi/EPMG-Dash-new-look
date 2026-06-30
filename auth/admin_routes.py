@@ -192,12 +192,20 @@ def manage_table_upload_rules():
 @admin_required
 def download_table_upload_rules():
     """Download the current table_info.json file."""
-    if not TABLE_INFO_PATH.exists():
+    try:
+        from utils.update_db_table import load_table_upload_rules
+        rules = load_table_upload_rules() or {}
+    except Exception:
+        rules = {}
+
+    if not rules:
         flash("table_info.json was not found.", "danger")
         return redirect(url_for("admin.manage_table_upload_rules"))
 
+    buf = io.BytesIO(json.dumps(rules, indent=2).encode("utf-8"))
+    buf.seek(0)
     return send_file(
-        TABLE_INFO_PATH,
+        buf,
         as_attachment=True,
         download_name="table_info.json",
         mimetype="application/json",
@@ -403,7 +411,6 @@ def remove_scenarios_page():
 
     if request.method == "POST":
         scenarios = request.form.getlist("scenarios")  
-        print(scenarios, "scenarios to delete")
         if not scenarios:
             flash("No scenarios selected", "warning")
             return redirect(url_for("admin.remove_scenarios_page"))

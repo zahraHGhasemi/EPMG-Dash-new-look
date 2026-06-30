@@ -40,7 +40,6 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
         scenarios = provider.get_scenarios_for_study(int(study_id))
 
         options = [{"label": scenario.name, "value": str(scenario.id)} for scenario in scenarios]
-        print(current_value, "current_value")
         if current_value in [options[i]['value'] for i in range(len(options))]:
             value = current_value
         else:
@@ -73,7 +72,6 @@ def register_sankey_callback(app, provider = SQLDataProvider(session=session)):
         # label_6 = provider.get_labels(provider.get_table_id_by_name('PWR_Gen-ELCC'))
         # label_7 = provider.get_labels(provider.get_table_id_by_name('AGR_FEC'))
         # label_8 = provider.get_labels(provider.get_table_id_by_name('SRV_FEC'))
-        # print(label_1, label_2, label_3, label_4, label_5, label_6, label_7, label_8)
 
 
         # The first two views are only available if the core TPED and FEC tables are present.

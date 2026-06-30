@@ -362,10 +362,25 @@ def delete_existing_values_for_scenario_tables(session, scenario_name: str, stud
         )
     )
     session.commit()
-    print(f"Deleted values for scenario '{scenario_name}' and tables {cleaned_tables}")
 
 def load_table_upload_rules() -> dict:
     """Load the table upload rules from the JSON file, returning an empty dict if the file does not exist or is invalid."""
+    # Prefer DB-backed storage when available
+    try:
+        from auth.models import AppConfig, db
+        row = db.session.execute(
+            select(AppConfig.json_value).where(AppConfig.key == "table_info")
+        ).scalar_one_or_none()
+        if row:
+            try:
+                return json.loads(row)
+            except json.JSONDecodeError:
+                # fall through to file fallback
+                pass
+    except Exception:
+        # DB not available or failed — fall back to file
+        pass
+
     try:
         with TABLE_INFO_PATH.open(encoding="utf-8") as f:
             return json.load(f)
@@ -375,16 +390,36 @@ def load_table_upload_rules() -> dict:
 
 def save_table_upload_rules(rules: dict) -> None:
     """Save the table upload rules to the JSON file, overwriting any existing content."""
-    TABLE_INFO_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with TABLE_INFO_PATH.open("w", encoding="utf-8") as f:
-        json.dump(rules, f, indent=2)
-        f.write("\n")
-        f.flush()
-        os.fsync(f.fileno())
+    # Try to save to DB first
+    try:
+        from auth.models import AppConfig, db
+        json_text = json.dumps(rules, indent=2) + "\n"
+        existing = db.session.execute(
+            select(AppConfig).where(AppConfig.key == "table_info")
+        ).scalar_one_or_none()
+        if existing is None:
+            existing = AppConfig(key="table_info", json_value=json_text)
+            db.session.add(existing)
+        else:
+            existing.json_value = json_text
+        db.session.commit()
 
-    saved_rules = load_table_upload_rules()
-    if saved_rules != rules:
-        raise ValueError("table_info.json was saved but could not be verified from disk.")
+        saved_rules = json.loads(existing.json_value)
+        if saved_rules != rules:
+            raise ValueError("table_info was saved but could not be verified in DB.")
+        return
+    except Exception:
+        # Fall back to file storage if DB is not available
+        TABLE_INFO_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with TABLE_INFO_PATH.open("w", encoding="utf-8") as f:
+            json.dump(rules, f, indent=2)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+
+        saved_rules = load_table_upload_rules()
+        if saved_rules != rules:
+            raise ValueError("table_info.json was saved but could not be verified from disk.")
 
 
 def get_table_upload_options() -> list[str]:
@@ -963,7 +998,6 @@ def process_uploaded_csv(
     # df = pd.read_csv(csv_path)
     session = SessionLocal()
     try:
-        # print(allow_existing_scenario, "allow_existing_scenario")
         if not allow_existing_scenario:
             ensure_scenario_not_exists(scenario_name, study_id, session)
 

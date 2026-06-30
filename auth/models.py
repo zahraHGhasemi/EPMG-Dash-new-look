@@ -113,6 +113,18 @@ class StudyAbout(db.Model):
     )
 
 
+class AppConfig(db.Model):
+    """Generic JSON-backed application configuration stored in the database.
+
+    Keys are arbitrary strings (e.g. 'dashboard_settings', 'table_info') and
+    values are stored as raw JSON text in `json_value`.
+    """
+    __tablename__ = "app_config"
+
+    key = db.Column(db.String(100), primary_key=True)
+    json_value = db.Column(db.Text)
+
+
 def pastel_continuous_palette(n: int, s: float = 0.35, v: float = 0.95) -> list[str]:
     """Generate n evenly spaced pastel hex colors from the HSV color wheel."""
     if n <= 0:

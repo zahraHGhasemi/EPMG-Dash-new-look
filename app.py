@@ -1,5 +1,5 @@
 
-from flask import Flask, render_template, url_for
+from flask import Flask, render_template, url_for, flash
 from flask_login import LoginManager
 from auth.models import db, User, Study
 from auth.auth_routes import auth_bp
@@ -27,9 +27,13 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DB_URL")
 # print("Database URL:", app.config["SQLALCHEMY_DATABASE_URI"])
 db.init_app(app)
 
+# Migration guard to run configs migration once on first real request
+_migration_done = True
+
 with app.app_context():
     db.create_all()
     ensure_scenario_study_fk_schema()
+    # ensure_series_color_schema()
     # ensure_series_color_schema()
 
 app.register_blueprint(auth_bp)
@@ -58,8 +62,31 @@ login_manager.init_app(app)
 def load_user(user_id):
     return db.session.get(User, int(user_id))
 
+
+# @app.before_first_request
+# def run_migrations():
+#     try:
+#         from utils.migrate_configs import migrate_configs_to_db
+#         migrate_configs_to_db(db.session, flash_fn=flash)
+#     except Exception as e:
+#         try:
+#             flash(f"Configuration migration failed: {e}", "danger")
+#         except Exception:
+#             print("Migration failed:", e)
+
 @app.context_processor
 def inject_studies():
+    global _migration_done
+    if not _migration_done:
+        try:
+            from utils.migrate_configs import migrate_configs_to_db
+            migrate_configs_to_db(db.session, flash_fn=flash)
+        except Exception as e:
+            try:
+                flash(f"Configuration migration failed: {e}", "danger")
+            except Exception:
+                print("Migration failed:", e)
+        _migration_done = True
     provider = SQLDataProvider(session=db.session)
 
     return {

@@ -43,7 +43,6 @@ def register_overview_callbacks(app, provider):
 
         scenarios = provider.get_scenarios_for_study(study_id)
         options = [{"label": scenario.name, "value": str(scenario.id)} for scenario in scenarios]
-        print(current_value, "current_value")
         if current_value in [options[i]['value'] for i in range(len(options))]:
             value = current_value
         else:
