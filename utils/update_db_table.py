@@ -33,7 +33,9 @@ TABLE_RULE_DIMENSION_COLUMNS = (
 def get_or_create_scenario(
     scenario_name: str,
     session,
-    study_id = None
+    study_id = None,
+    *,
+    allow_existing: bool = True,
 ) -> int:
     """Get the ID of an existing scenario by name and study_id, or create it if it doesn't exist."""
     scenario_id = session.execute(
@@ -42,6 +44,14 @@ def get_or_create_scenario(
     ).scalar_one_or_none()
 
     if scenario_id is not None:
+        if not allow_existing:
+            study_name = session.execute(
+                select(Study.name).where(Study.id == study_id)
+            ).scalar_one_or_none()
+            raise ValueError(
+                f"Scenario '{scenario_name}' already exists in study {study_name}. "
+                "Tick the 'Overwrite existing scenarios' checkbox to replace it."
+            )
         return scenario_id
 
     session.add(Scenario(name=scenario_name, study_id=study_id))
@@ -240,6 +250,26 @@ def melt_and_map_values(
         "scenario_id", "series_id", "year", "value"
     ]]
 
+def delete_existing_values_for_upload_keys(session, scenario_id: int, values_df: pd.DataFrame) -> None:
+    """Remove existing value rows for the same scenario/series/year combinations before inserting updated data."""
+    if values_df.empty:
+        return
+
+    series_ids = sorted({int(series_id) for series_id in values_df["series_id"].dropna().astype(int).tolist() if pd.notna(series_id)})
+    years = sorted({int(year) for year in values_df["year"].dropna().astype(int).tolist() if pd.notna(year)})
+    if not series_ids or not years:
+        return
+
+    session.execute(
+        delete(Value).where(
+            Value.scenario_id == scenario_id,
+            Value.series_id.in_(series_ids),
+            Value.year.in_(years),
+        )
+    )
+    session.commit()
+
+
 def bulk_insert_values(values_df, engine):
     """Insert the prepared values DataFrame into the Values table using bulk insertion."""
     values_df.to_sql(
@@ -264,23 +294,6 @@ def map_processed_table_upload_values(data, scenario_id_map, table_map, series_m
     values_df["year"] = values_df["year"].astype(int)
     values_df["value"] = values_df["total"]
     return values_df[["scenario_id", "series_id", "year", "value"]]
-
-
-def ensure_scenario_not_exists(scenario_name, study_id, session):
-    """Check if a scenario with the given name already exists, and raise an error if it does."""
-    exists = session.execute(
-        select(Scenario.id)
-        .where(Scenario.name == scenario_name)
-        .where(Scenario.study_id == study_id)
-    ).scalar_one_or_none()
-    study_name = session.execute(
-        select(Study.name).where(Study.id == study_id)
-    ).scalar_one_or_none()
-    if exists is not None:
-        raise ValueError(
-            f"Scenario '{scenario_name}' already exists in study {study_name}. "
-            "Tick the 'Overwrite existing scenarios' checkbox to replace it."
-        )
 
 
 def get_existing_table_conflicts(session, scenario_names, table_names, study_id=None) -> dict[str, list[str]]:
@@ -331,25 +344,17 @@ def delete_existing_values_for_scenario_tables(session, scenario_name: str, stud
     scenario_id = session.execute(
         select(Scenario.id).where(Scenario.name == scenario_name, Scenario.study_id == study_id)
     ).scalar_one_or_none()
-    print("in delete")
     if scenario_id is None:
-        print("scenario not found, nothing to delete")
         return
+
     if all_tables:
-        
-        print("in delete all tables for scenario")
-        scenario_obj = (
-            session.query(Scenario)
-            .filter_by(id=scenario_id)
-            .first()
-        )
-        if scenario_obj:
-            session.delete(scenario_obj)
-            session.commit()
-        
+        session.execute(delete(Value).where(Value.scenario_id == scenario_id))
+        session.commit()
         return
+
     if not cleaned_tables:
         return
+
     series_ids_subquery = (
         select(Series.id)
         .join(Table, Table.id == Series.table_id)
@@ -998,12 +1003,7 @@ def process_uploaded_csv(
     # df = pd.read_csv(csv_path)
     session = SessionLocal()
     try:
-        if not allow_existing_scenario:
-            ensure_scenario_not_exists(scenario_name, study_id, session)
-
-        elif overwrite_table_names is None:
-            # scenario_id_deleted = session.execute(select(Scenario.id).where(Scenario.name == scenario_name, Scenario.study_id == study_id)).scalar_one_or_none()
-            # print(scenario_id_deleted, "scenario_id before deletion")
+        if allow_existing_scenario and overwrite_table_names is None:
             delete_existing_values_for_scenario_tables(
                 session,
                 scenario_name,
@@ -1011,9 +1011,13 @@ def process_uploaded_csv(
                 table_names=[],
                 all_tables=True
             )
-            # scenario_id_deleted = session.execute(select(Scenario.id).where(Scenario.name == scenario_name, Scenario.study_id == study_id)).scalar_one_or_none()
-            # print(scenario_id_deleted, "scenario_id after deletion")
-        scenario_id = get_or_create_scenario(scenario_name, session, study_id=study_id)
+
+        scenario_id = get_or_create_scenario(
+            scenario_name,
+            session,
+            study_id=study_id,
+            allow_existing=allow_existing_scenario,
+        )
 
         table_map = upsert_tables(df, session)
         series_map = upsert_series(df, table_map, session)
@@ -1031,6 +1035,8 @@ def process_uploaded_csv(
         values_df = melt_and_map_values(
             df, scenario_id, table_map, series_map
         )
+        values_df = values_df.drop_duplicates(subset=["scenario_id", "series_id", "year"]).copy()
+        delete_existing_values_for_upload_keys(session, scenario_id, values_df)
 
         bulk_insert_values(values_df, engine)
     finally:
